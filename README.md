@@ -1,11 +1,11 @@
-# VORDI 🎙️🌐
+# VORDI
 
 > **Voice-Operated Remote-Directed Interface**  
 > A next-generation smart browser extension enabling complete hands-free navigation and internal element control via natural voice commands.
 
 ---
 
-## 🌟 Overview
+## Overview
 
 VORDI transforms how users interact with the web by replacing mouse clicking and keyboard typing with intelligent voice recognition and intent-driven DOM automation. Built for speed, accessibility, and precision, VORDI operates under Chrome Manifest V3 using an isolated **Offscreen Document** architecture.
 
@@ -57,24 +57,3 @@ Complete software engineering documentation is available in the [`docs/`](./docs
 - **Companion Backend (Optional):** Python (FastAPI, WebSockets, `faster-whisper`, `spaCy`)
 
 ---
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js ≥ 20 LTS
-- npm or pnpm
-
-### Setup
-```bash
-# Clone the repository
-git clone https://github.com/Harsh-code47/VORDI.git
-cd VORDI
-
-# Install dependencies (once project structure is initialized)
-npm install
-```
-
----
-
-## 📄 License
-MIT License.
