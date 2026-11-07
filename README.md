@@ -23,7 +23,7 @@ VORDI transforms how users interact with the web by replacing mouse clicking and
 
 ```mermaid
 flowchart TD
-    User["🎙️ Spoken Command"] --> Offscreen["Offscreen Document (Web Audio / WASM)"]
+    User["Spoken Command"] --> Offscreen["Offscreen Document (Web Audio / WASM)"]
     Offscreen -->|Wake / Audio| ASR["Speech Recognition Engine"]
     ASR -->|Transcript| SW["Service Worker (Orchestrator)"]
     SW --> NLU["NLU Engine (Regex Patterns + LLM fallback)"]
