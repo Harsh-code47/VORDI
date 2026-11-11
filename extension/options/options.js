@@ -23,6 +23,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const macrosList = document.getElementById('macros-list');
   const btnRequestMic = document.getElementById('btn-request-mic');
   const micStatusDesc = document.getElementById('mic-status-desc');
+  const btnOpenHubOptions = document.getElementById('btn-open-hub-options');
+
+  if (btnOpenHubOptions) {
+    btnOpenHubOptions.addEventListener('click', () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL('hub/hub.html') });
+    });
+  }
 
   // Check and display mic permission status
   async function checkMic() {

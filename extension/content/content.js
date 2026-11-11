@@ -218,8 +218,7 @@
     else if (s.hudPosition === 'bottom-left') hud.classList.add('hud-bottom-left');
 
     if (s.enabled !== false) {
-      setHUDState('standby', 'Say "Hey VORDI" or tap 🎤');
-      setTimeout(startWakeWordListener, 1200);
+      setHUDState('standby', 'VORDI Active (Alt+V or Side Panel)');
     }
   });
 
@@ -248,158 +247,17 @@
     setTimeout(() => f.remove(), 500);
   }
 
-  // ── Speech Recognition & Wake Word on Web Pages ─────────────────────────────
-  const WAKE_PHRASES = ['hey vordi', 'hey wordy', 'hey vordee', 'hey boardy', 'vordi'];
-  let wakeRecognizer = null;
-  let isWakeListening = false;
-  let commandRecognizer = null;
-  let isCommandListening = false;
-
-  function startWakeWordListener() {
-    if (isWakeListening || isCommandListening) return;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-
-    try {
-      wakeRecognizer = new SR();
-      wakeRecognizer.continuous = true;
-      wakeRecognizer.interimResults = true;
-      wakeRecognizer.lang = 'en-US';
-
-      wakeRecognizer.onresult = (e) => {
-        for (let i = e.resultIndex; i < e.results.length; ++i) {
-          const text = e.results[i][0].transcript.toLowerCase();
-          for (const phrase of WAKE_PHRASES) {
-            if (text.includes(phrase)) {
-              console.log('[VORDI Content] Wake word detected:', text);
-              const idx = text.indexOf(phrase) + phrase.length;
-              const remainder = text.slice(idx).trim();
-
-              stopWakeRecognizer();
-
-              if (remainder.length > 2) {
-                // Command was spoken together, e.g. "Hey VORDI new tab"
-                setHUDState('active', `"${remainder}"`);
-                chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: remainder });
-                setTimeout(startWakeWordListener, 2000);
-              } else {
-                // Wake word alone, arm command listener
-                triggerCommandListen();
-              }
-              return;
-            }
-          }
-        }
-      };
-
-      wakeRecognizer.onerror = (e) => {
-        isWakeListening = false;
-        if (e.error !== 'not-allowed') {
-          setTimeout(startWakeWordListener, 2500);
-        }
-      };
-
-      wakeRecognizer.onend = () => {
-        isWakeListening = false;
-        if (!isCommandListening) {
-          setTimeout(startWakeWordListener, 1000);
-        }
-      };
-
-      wakeRecognizer.start();
-      isWakeListening = true;
-      setHUDState('standby', 'Say "Hey VORDI" or tap 🎤');
-    } catch (_) {}
-  }
-
-  function stopWakeRecognizer() {
-    if (wakeRecognizer) {
-      try { wakeRecognizer.abort(); } catch (_) {}
-      wakeRecognizer = null;
-    }
-    isWakeListening = false;
-  }
-
-  function triggerCommandListen() {
-    stopWakeRecognizer();
-    if (isCommandListening) {
-      if (commandRecognizer) {
-        try { commandRecognizer.stop(); } catch (_) {}
-      }
-      isCommandListening = false;
-      return;
-    }
-
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-
-    commandRecognizer = new SR();
-    commandRecognizer.continuous = false;
-    commandRecognizer.interimResults = true;
-    commandRecognizer.lang = 'en-US';
-
-    let finalCommand = '';
-    let latestSpoken = '';
-
-    commandRecognizer.onstart = () => {
-      isCommandListening = true;
-      micBtn.classList.add('listening');
-      setHUDState('active', 'Listening… Speak now!');
-    };
-
-    commandRecognizer.onresult = (e) => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; ++i) {
-        if (e.results[i].isFinal) {
-          finalCommand += e.results[i][0].transcript;
-        } else {
-          interim += e.results[i][0].transcript;
-        }
-      }
-      latestSpoken = (finalCommand || interim).trim();
-      if (latestSpoken) transcriptEl.textContent = `"${latestSpoken}"`;
-    };
-
-    commandRecognizer.onerror = (e) => {
-      isCommandListening = false;
-      micBtn.classList.remove('listening');
-      setHUDState('standby', e.error === 'not-allowed' ? 'Mic access blocked' : `Mic error: ${e.error}`);
-      setTimeout(startWakeWordListener, 2000);
-    };
-
-    commandRecognizer.onend = () => {
-      isCommandListening = false;
-      micBtn.classList.remove('listening');
-      const cmd = (finalCommand || latestSpoken).trim();
-      if (cmd) {
-        setHUDState('active', `Running: "${cmd}"`);
-        chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd });
-        setTimeout(startWakeWordListener, 2000);
-      } else {
-        setHUDState('standby', 'Say "Hey VORDI" or tap 🎤');
-        setTimeout(startWakeWordListener, 1000);
-      }
-    };
-
-    try {
-      commandRecognizer.start();
-    } catch (err) {
-      console.warn('Could not start command recognition:', err);
-      setTimeout(startWakeWordListener, 2000);
-    }
-  }
-
-  // Click mic button on HUD
+  // ── HUD Mic Button & Hotkey ───────────────────────────────────────────────
   micBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    triggerCommandListen();
+    chrome.runtime.sendMessage({ type: 'TRIGGER_VOICE_ASSISTANT' }).catch(() => {});
   });
 
   // Hotkey: Alt+V
   window.addEventListener('keydown', (e) => {
     if (e.altKey && (e.key === 'v' || e.key === 'V')) {
       e.preventDefault();
-      triggerCommandListen();
+      chrome.runtime.sendMessage({ type: 'TRIGGER_VOICE_ASSISTANT' }).catch(() => {});
     }
   });
 

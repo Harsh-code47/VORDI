@@ -60,7 +60,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "lib/*", "permission/*", "sidepanel/*"],
+      "resources": ["icons/*", "lib/*", "permission/*", "sidepanel/*", "hub/*"],
       "matches": ["<all_urls>"]
     }
   ]

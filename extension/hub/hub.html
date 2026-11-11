@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VORDI Voice Hub — Continuous Voice Assistant</title>
+  <link rel="stylesheet" href="../sidepanel/sidepanel.css">
+  <style>
+    body {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+    .hub-banner {
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #c7d2fe;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel-container">
+    <div class="hub-banner">
+      <span style="font-size: 20px;">💡</span>
+      <span><strong>Pro Tip:</strong> Keep this tab open (or pin it). You can switch to any other tab and say <strong>"Hey VORDI"</strong> hands-free!</span>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <span class="brand-icon">◎</span>
+        <span class="brand-name">VORDI Voice Hub</span>
+        <span class="brand-badge">Hands-Free</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-toggle-wake" class="btn-wake active" title="Toggle Wake Word">
+          <span class="wake-dot"></span>
+          <span class="wake-label">Wake Word: ON</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Visualizer & Status -->
+    <section class="visualizer-section">
+      <div class="orb-container" id="orb">
+        <div class="orb-ring ring-3"></div>
+        <div class="orb-ring ring-2"></div>
+        <div class="orb-ring ring-1"></div>
+        <button class="orb-core" id="mic-trigger-btn" title="Tap to Speak">
+          <svg class="mic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
+            <path d="M5 10a7 7 0 0 0 14 0" stroke-linecap="round"/>
+            <line x1="12" y1="17" x2="12" y2="21" stroke-linecap="round"/>
+            <line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="status-box">
+        <div class="status-heading" id="status-title">Listening for "Hey VORDI"</div>
+        <div class="status-desc" id="status-desc">Say "Hey VORDI, [command]" or tap the microphone above</div>
+      </div>
+
+      <!-- Live audio level meter -->
+      <div class="audio-meter">
+        <div class="meter-bar" id="meter-fill"></div>
+      </div>
+
+      <!-- Live Transcript Box -->
+      <div class="transcript-card" id="transcript-card">
+        <div class="transcript-header">Live Transcript</div>
+        <div class="transcript-body" id="transcript-body">Awaiting your voice...</div>
+      </div>
+    </section>
+
+    <!-- Direct Command Tester -->
+    <section class="test-section">
+      <h3 class="section-title">Quick Test & Direct Execution</h3>
+      <form id="direct-cmd-form" class="cmd-form">
+        <input type="text" id="cmd-input" placeholder="Type a command (e.g. 'new tab', 'scroll down')..." />
+        <button type="submit" class="btn-run">Run</button>
+      </form>
+
+      <div class="chip-container">
+        <button type="button" class="quick-chip" data-cmd="open new tab">+ New Tab</button>
+        <button type="button" class="quick-chip" data-cmd="scroll down">⬇ Scroll Down</button>
+        <button type="button" class="quick-chip" data-cmd="scroll up">⬆ Scroll Up</button>
+        <button type="button" class="quick-chip" data-cmd="search for quantum computing">🔍 Search AI</button>
+        <button type="button" class="quick-chip" data-cmd="go to github.com">🌐 GitHub</button>
+        <button type="button" class="quick-chip" data-cmd="bookmark this page">⭐ Bookmark</button>
+      </div>
+    </section>
+
+    <!-- Diagnostics / Mic test -->
+    <section class="diag-section">
+      <button id="btn-run-diag" class="btn-diag">
+        <span>🔬 Run Audio & Microphone Self-Test</span>
+      </button>
+      <div id="diag-results" class="diag-results" style="display: none;"></div>
+    </section>
+
+    <!-- Command History -->
+    <section class="history-section">
+      <h3 class="section-title">Command History</h3>
+      <ul class="history-list" id="history-list">
+        <li class="history-empty">No commands executed yet</li>
+      </ul>
+    </section>
+  </div>
+
+  <script src="../sidepanel/sidepanel.js"></script>
+</body>
+</html>

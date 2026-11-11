@@ -35,6 +35,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateStatus(enableToggle.checked ? 'standby' : 'sleeping', enableToggle.checked);
   renderHistory(stored.commandHistory || []);
 
+  const btnOpenHub = document.getElementById('btn-open-hub');
+  if (btnOpenHub) {
+    btnOpenHub.addEventListener('click', () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL('hub/hub.html') });
+    });
+  }
+
   // Permission Banner click
   if (grantPermLink) {
     grantPermLink.addEventListener('click', () => {
@@ -74,7 +81,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       if (activeRecognition) {
-        try { activeRecognition.abort(); } catch (_) {}
+        try {
+          activeRecognition.onstart = null;
+          activeRecognition.onresult = null;
+          activeRecognition.onerror = null;
+          activeRecognition.onend = null;
+          activeRecognition.abort();
+        } catch (_) {}
+        activeRecognition = null;
       }
 
       activeRecognition = new SR();

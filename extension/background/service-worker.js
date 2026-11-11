@@ -63,9 +63,15 @@ async function injectIntoExistingTabs() {
 // ── Keyboard shortcut command listener ───────────────────────────────────────
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'toggle-listen') {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id && tab.url && !tab.url.startsWith('chrome://')) {
-      chrome.tabs.sendMessage(tab.id, { type: 'START_PAGE_LISTEN' }).catch(() => {});
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab?.windowId && chrome.sidePanel?.open) {
+      try {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+      } catch (_) {
+        chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel/sidepanel.html') });
+      }
+    } else {
+      chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel/sidepanel.html') });
     }
   }
 });
@@ -199,6 +205,21 @@ async function handleUIMessage(message, sender, sendResponse) {
     case 'GET_STATE':
       sendResponse({ state: _state, enabled: _enabled });
       break;
+
+    case 'TRIGGER_VOICE_ASSISTANT': {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      if (tab?.windowId && chrome.sidePanel?.open) {
+        try {
+          await chrome.sidePanel.open({ windowId: tab.windowId });
+        } catch (_) {
+          chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel/sidepanel.html') });
+        }
+      } else {
+        chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel/sidepanel.html') });
+      }
+      sendResponse({ ok: true });
+      break;
+    }
 
     case 'MANUAL_TRIGGER': {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

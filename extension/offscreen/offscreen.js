@@ -77,8 +77,8 @@ function listenForCommand() {
     },
     (error) => {
       sendToBackground({ type: 'COMMAND_ERROR', error });
-      _state = 'wake-listening';
-      setTimeout(() => startWakeWordDetection(onWakeWordDetected, _language), 1000);
+      _state = 'sleeping';
+      console.warn('[Offscreen ASR] Error encountered, paused:', error);
     }
   );
 }

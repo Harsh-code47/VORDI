@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const WAKE_PHRASES = ['hey vordi', 'hey wordy', 'hey vordee', 'hey boardy', 'vordi'];
 
   function startRecognitionLoop() {
+    if (!wakeEnabled) return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       statusTitle.textContent = 'Speech Recognition Not Supported';
@@ -67,17 +68,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Clean up old instance completely before creating a new one
+    if (recognition) {
+      try {
+        recognition.onstart = null;
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        recognition.abort();
+      } catch (_) {}
+      recognition = null;
+    }
+
     try {
-      if (recognition) {
-        try { recognition.abort(); } catch (_) {}
-      }
+      const rec = new SR();
+      recognition = rec;
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
 
-      recognition = new SR();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
+      rec.onstart = () => {
         isListening = true;
         orb.classList.add('listening');
         if (!isCommandActive) {
@@ -86,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       };
 
-      recognition.onresult = (event) => {
+      rec.onresult = (event) => {
         let interim = '';
         let final = '';
 
@@ -133,7 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       };
 
-      recognition.onerror = (event) => {
+      rec.onerror = (event) => {
         console.warn('[SidePanel Speech] Error:', event.error);
         if (event.error === 'not-allowed') {
           statusTitle.textContent = 'Microphone Blocked';
@@ -143,20 +153,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       };
 
-      recognition.onend = () => {
+      rec.onend = () => {
         isListening = false;
         orb.classList.remove('listening');
-        // Auto-restart loop if wake word is enabled
         if (wakeEnabled) {
-          setTimeout(() => {
-            try { recognition.start(); } catch (_) {}
-          }, 300);
+          setTimeout(startRecognitionLoop, 350);
         }
       };
 
-      recognition.start();
+      rec.start();
     } catch (err) {
       console.warn('Recognition start exception:', err);
+      if (wakeEnabled) {
+        setTimeout(startRecognitionLoop, 1000);
+      }
     }
   }
 
