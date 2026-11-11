@@ -31,7 +31,7 @@
     <!-- Status -->
     <div class="status-bar" id="status-bar">
       <span class="status-dot" id="status-dot"></span>
-      <span class="status-text" id="status-text">Loading…</span>
+      <span class="status-text" id="status-text">Ready</span>
     </div>
 
     <!-- Mic button -->
@@ -46,8 +46,29 @@
         <span class="mic-label" id="mic-label">Tap to Speak</span>
       </button>
       <div class="live-transcript" id="live-transcript" style="display: none;"></div>
-      <p class="wake-hint">or say <strong>"Hey VORDI"</strong> on any page (Alt+V)</p>
+      <p class="wake-hint">or say <strong>"Hey VORDI"</strong> on web pages (Alt+V)</p>
     </div>
+
+    <!-- Quick Test Command Input -->
+    <section class="test-input-section">
+      <form id="popup-cmd-form" class="popup-cmd-form">
+        <input type="text" id="popup-cmd-input" placeholder="Type command to test (e.g. 'new tab')" />
+        <button type="submit" id="popup-cmd-btn" class="popup-run-btn">Run</button>
+      </form>
+    </section>
+
+    <!-- Quick hints / Test chips -->
+    <section class="hints-section">
+      <h3 class="section-title">Quick Test Commands</h3>
+      <div class="hints-grid">
+        <div class="hint-chip" data-cmd="open new tab">New tab</div>
+        <div class="hint-chip" data-cmd="scroll down">Scroll down</div>
+        <div class="hint-chip" data-cmd="scroll up">Scroll up</div>
+        <div class="hint-chip" data-cmd="search for quantum computing">Google search</div>
+        <div class="hint-chip" data-cmd="go to github.com">GitHub</div>
+        <div class="hint-chip" data-cmd="bookmark this page">Bookmark</div>
+      </div>
+    </section>
 
     <!-- Recent commands -->
     <section class="recent-section">
@@ -57,21 +78,10 @@
       </ul>
     </section>
 
-    <!-- Quick hints -->
-    <section class="hints-section">
-      <h3 class="section-title">Quick Commands</h3>
-      <div class="hints-grid">
-        <div class="hint-chip">New tab</div>
-        <div class="hint-chip">Search for…</div>
-        <div class="hint-chip">Scroll down</div>
-        <div class="hint-chip">Go back</div>
-        <div class="hint-chip">Bookmark this</div>
-        <div class="hint-chip">Volume up</div>
-      </div>
-    </section>
-
     <!-- Footer -->
     <footer class="footer">
+      <a href="#" id="open-sidepanel" class="footer-link">📱 Side Panel</a>
+      <span class="footer-sep">·</span>
       <a href="#" id="open-options" class="footer-link">⚙ Settings</a>
       <span class="footer-sep">·</span>
       <a href="#" id="open-help" class="footer-link">? Help</a>

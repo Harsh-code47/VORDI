@@ -14,7 +14,8 @@
     "notifications",
     "offscreen",
     "alarms",
-    "audioCapture"
+    "audioCapture",
+    "sidePanel"
   ],
   "commands": {
     "toggle-listen": {
@@ -24,6 +25,9 @@
       },
       "description": "Activate VORDI Voice Command"
     }
+  },
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
   },
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -56,7 +60,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "lib/*", "permission/*"],
+      "resources": ["icons/*", "lib/*", "permission/*", "sidepanel/*"],
       "matches": ["<all_urls>"]
     }
   ]

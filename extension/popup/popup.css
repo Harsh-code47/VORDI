@@ -217,3 +217,54 @@ input:checked + .toggle-track::after { transform: translateX(18px); }
   word-break: break-word;
   font-style: italic;
 }
+
+/* Quick Test Form */
+.test-input-section {
+  padding: 0 16px 8px;
+}
+
+.popup-cmd-form {
+  display: flex;
+  gap: 6px;
+}
+
+.popup-cmd-form input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  outline: none;
+}
+
+.popup-cmd-form input:focus {
+  border-color: var(--accent);
+}
+
+.popup-run-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.popup-run-btn:hover {
+  background: var(--accent-hover);
+}
+
+.hint-chip {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hint-chip:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--accent);
+  color: #c7d2fe;
+}

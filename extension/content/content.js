@@ -339,6 +339,7 @@
     commandRecognizer.lang = 'en-US';
 
     let finalCommand = '';
+    let latestSpoken = '';
 
     commandRecognizer.onstart = () => {
       isCommandListening = true;
@@ -355,8 +356,8 @@
           interim += e.results[i][0].transcript;
         }
       }
-      const display = finalCommand || interim;
-      if (display) transcriptEl.textContent = `"${display}"`;
+      latestSpoken = (finalCommand || interim).trim();
+      if (latestSpoken) transcriptEl.textContent = `"${latestSpoken}"`;
     };
 
     commandRecognizer.onerror = (e) => {
@@ -369,7 +370,7 @@
     commandRecognizer.onend = () => {
       isCommandListening = false;
       micBtn.classList.remove('listening');
-      const cmd = finalCommand.trim();
+      const cmd = (finalCommand || latestSpoken).trim();
       if (cmd) {
         setHUDState('active', `Running: "${cmd}"`);
         chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd });

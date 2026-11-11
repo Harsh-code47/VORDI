@@ -1,9 +1,8 @@
 // popup/popup.js
-// Direct speech recognition & UI management in popup
+// Handles direct speech recognition, quick command testing, and side panel launch
 
 document.addEventListener('DOMContentLoaded', async () => {
   const enableToggle = document.getElementById('enable-toggle');
-  const statusBar = document.getElementById('status-bar');
   const statusDot = document.getElementById('status-dot');
   const statusText = document.getElementById('status-text');
   const micBtn = document.getElementById('mic-btn');
@@ -12,6 +11,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const permissionBanner = document.getElementById('permission-banner');
   const grantPermLink = document.getElementById('grant-perm-link');
   const recentList = document.getElementById('recent-list');
+  const popupCmdForm = document.getElementById('popup-cmd-form');
+  const popupCmdInput = document.getElementById('popup-cmd-input');
+  const openSidepanel = document.getElementById('open-sidepanel');
   const openOptions = document.getElementById('open-options');
   const openHelp = document.getElementById('open-help');
   const hintChips = document.querySelectorAll('.hint-chip');
@@ -19,11 +21,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeRecognition = null;
   let isListening = false;
   let currentLanguage = 'en-US';
+  let latestHeardText = '';
 
   // Check microphone permission
   checkMicPermission();
 
-  // Load current settings & state
+  // Load existing settings
   const stored = await chrome.storage.local.get(['settings', 'commandHistory']);
   const settings = stored.settings || {};
   if (settings.language) currentLanguage = settings.language;
@@ -32,10 +35,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateStatus(enableToggle.checked ? 'standby' : 'sleeping', enableToggle.checked);
   renderHistory(stored.commandHistory || []);
 
-  // Listen for permission banner click
-  grantPermLink.addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
-  });
+  // Permission Banner click
+  if (grantPermLink) {
+    grantPermLink.addEventListener('click', () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
+    });
+  }
 
   // Toggle switch
   enableToggle.addEventListener('change', () => {
@@ -45,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Tap to Speak button
-  micBtn.addEventListener('click', async () => {
+  micBtn.addEventListener('click', () => {
     if (isListening) {
       stopLocalRecognition();
       return;
@@ -59,11 +64,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     startLocalRecognition();
   });
 
-  // Direct Web Speech API in popup
+  // ── Speech Recognition ─────────────────────────────────────────────────────
   function startLocalRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      statusText.textContent = 'Speech recognition not supported in browser';
+      statusText.textContent = 'SpeechRecognition not supported in browser';
       return;
     }
 
@@ -78,7 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       activeRecognition.interimResults = true;
       activeRecognition.maxAlternatives = 1;
 
-      let finalCapturedText = '';
+      latestHeardText = '';
 
       activeRecognition.onstart = () => {
         isListening = true;
@@ -87,24 +92,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusDot.className = 'status-dot active';
         statusText.textContent = 'Listening to your voice…';
         liveTranscript.style.display = 'block';
-        liveTranscript.textContent = 'Say a command (e.g. "new tab", "search for AI")...';
+        liveTranscript.textContent = 'Speak now (e.g. "new tab", "scroll down")...';
       };
 
       activeRecognition.onresult = (event) => {
         let interimText = '';
+        let finalText = '';
+
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const res = event.results[i];
           if (res.isFinal) {
-            finalCapturedText += res[0].transcript;
+            finalText += res[0].transcript;
           } else {
             interimText += res[0].transcript;
           }
         }
 
-        const displayText = finalCapturedText || interimText;
+        const displayText = finalText || interimText;
         if (displayText) {
-          liveTranscript.textContent = `"${displayText}"`;
-          statusText.textContent = `Hearing: "${displayText}"`;
+          latestHeardText = displayText.trim();
+          liveTranscript.textContent = `"${latestHeardText}"`;
+          statusText.textContent = `Hearing: "${latestHeardText}"`;
         }
       };
 
@@ -130,26 +138,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         micBtn.classList.remove('listening');
         micLabel.textContent = 'Tap to Speak';
 
-        const commandToRun = finalCapturedText.trim();
+        const commandToRun = latestHeardText.trim();
         if (commandToRun) {
-          statusText.textContent = `Executing: "${commandToRun}"...`;
-          liveTranscript.textContent = `Executing: "${commandToRun}"`;
-
-          chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: commandToRun }, () => {
-            setTimeout(() => {
-              loadHistory();
-              liveTranscript.style.display = 'none';
-              statusText.textContent = 'Command executed!';
-              setTimeout(() => {
-                updateStatus('standby', enableToggle.checked);
-              }, 1500);
-            }, 300);
-          });
+          executeCommand(commandToRun);
         } else {
           setTimeout(() => {
             liveTranscript.style.display = 'none';
             updateStatus('standby', enableToggle.checked);
-          }, 1200);
+          }, 1000);
         }
       };
 
@@ -172,13 +168,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateStatus('standby', enableToggle.checked);
   }
 
+  function executeCommand(cmd) {
+    if (!cmd) return;
+    statusText.textContent = `Executing: "${cmd}"...`;
+    liveTranscript.style.display = 'block';
+    liveTranscript.textContent = `Executing: "${cmd}"`;
+
+    chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd }, () => {
+      setTimeout(() => {
+        loadHistory();
+        liveTranscript.textContent = `✓ Executed: "${cmd}"`;
+        statusText.textContent = 'Command executed!';
+        setTimeout(() => {
+          liveTranscript.style.display = 'none';
+          updateStatus('standby', enableToggle.checked);
+        }, 1500);
+      }, 300);
+    });
+  }
+
+  // ── Quick Command Form ─────────────────────────────────────────────────────
+  popupCmdForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const val = popupCmdInput.value.trim();
+    if (val) {
+      executeCommand(val);
+      popupCmdInput.value = '';
+    }
+  });
+
+  // ── Quick chips ───────────────────────────────────────────────────────────
+  hintChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const cmd = chip.dataset.cmd || chip.textContent.trim().replace('…', '');
+      executeCommand(cmd);
+    });
+  });
+
+  // ── Open Side Panel ───────────────────────────────────────────────────────
+  if (openSidepanel) {
+    openSidepanel.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.windowId && chrome.sidePanel?.open) {
+          await chrome.sidePanel.open({ windowId: tab.windowId });
+        } else {
+          chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel/sidepanel.html') });
+        }
+      } catch (_) {
+        chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel/sidepanel.html') });
+      }
+    });
+  }
+
   async function checkMicPermission() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
       permissionBanner.style.display = 'none';
       chrome.storage.local.set({ micPermissionGranted: true });
-    } catch (err) {
+    } catch (_) {
       permissionBanner.style.display = 'flex';
     }
   }
@@ -195,22 +245,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusText.textContent = 'Listening for command…';
     } else {
       statusDot.classList.add('standby');
-      statusText.textContent = 'Listening for "Hey VORDI"';
+      statusText.textContent = 'Ready (Say "Hey VORDI")';
     }
   }
 
-  // Quick chips
-  hintChips.forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const cmd = chip.textContent.trim().replace('…', '');
-      statusText.textContent = `Running: "${cmd}"...`;
-      chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd }, () => {
-        setTimeout(loadHistory, 400);
-      });
-    });
-  });
-
-  // History
   function loadHistory() {
     chrome.storage.local.get('commandHistory', (data) => {
       renderHistory(data.commandHistory || []);
@@ -232,9 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <span class="cmd-time">${time}</span>
       `;
       li.addEventListener('click', () => {
-        chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: item.transcript }, () => {
-          setTimeout(loadHistory, 400);
-        });
+        executeCommand(item.transcript);
       });
       recentList.appendChild(li);
     });
@@ -244,7 +280,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  // Links
   if (openOptions) {
     openOptions.addEventListener('click', (e) => {
       e.preventDefault();

@@ -32,14 +32,33 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
     chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
   }
+
+  // Inject content scripts into all already open web tabs
+  injectIntoExistingTabs();
+
   await setupOffscreen();
   startKeepAlive();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  injectIntoExistingTabs();
   await setupOffscreen();
   startKeepAlive();
 });
+
+async function injectIntoExistingTabs() {
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (tab.id && tab.url && /^https?:\/\//i.test(tab.url)) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content/content.js']
+        }).catch(() => {});
+      }
+    }
+  } catch (_) {}
+}
 
 // ── Keyboard shortcut command listener ───────────────────────────────────────
 chrome.commands.onCommand.addListener(async (command) => {
@@ -252,7 +271,20 @@ async function processTranscript(transcript) {
   // Save to history
   saveCommandHistory(transcript, intent);
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  // Find active tab reliably across windows
+  let tab = null;
+  const activeTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (activeTabs && activeTabs.length > 0) {
+    tab = activeTabs[0];
+  } else {
+    const curTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    tab = curTabs?.[0] || null;
+  }
+  if (!tab) {
+    const anyActive = await chrome.tabs.query({ active: true });
+    tab = anyActive?.[0] || null;
+  }
+
   const result = await executeIntent(intent, entities, tab?.id);
 
   // Handle sleep command
