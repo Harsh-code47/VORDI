@@ -56,4 +56,9 @@ Complete software engineering documentation is available in the [`docs/`](./docs
 - **DOM Engine:** Native DOM traversal with fuzzy text scoring and reactive form setters
 - **Companion Backend (Optional):** Python (FastAPI, WebSockets, `faster-whisper`, `spaCy`)
 
+- **DEVELOPED BY:**
+- Harsh Gupta
+- Divya Maliwal
+- 
+
 ---
