@@ -2,39 +2,62 @@
 // Handles direct speech recognition, quick command testing, and side panel launch
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const enableToggle = document.getElementById('enable-toggle');
-  const statusDot = document.getElementById('status-dot');
-  const statusText = document.getElementById('status-text');
-  const micBtn = document.getElementById('mic-btn');
-  const micLabel = document.getElementById('mic-label');
+  const enableToggle   = document.getElementById('enable-toggle');
+  const statusDot      = document.getElementById('status-dot');
+  const statusText     = document.getElementById('status-text');
+  const micBtn         = document.getElementById('mic-btn');
+  const micLabel       = document.getElementById('mic-label');
   const liveTranscript = document.getElementById('live-transcript');
   const permissionBanner = document.getElementById('permission-banner');
-  const grantPermLink = document.getElementById('grant-perm-link');
-  const recentList = document.getElementById('recent-list');
-  const popupCmdForm = document.getElementById('popup-cmd-form');
-  const popupCmdInput = document.getElementById('popup-cmd-input');
-  const openSidepanel = document.getElementById('open-sidepanel');
-  const openOptions = document.getElementById('open-options');
-  const openHelp = document.getElementById('open-help');
-  const hintChips = document.querySelectorAll('.hint-chip');
+  const grantPermLink  = document.getElementById('grant-perm-link');
+  const recentList     = document.getElementById('recent-list');
+  const popupCmdForm   = document.getElementById('popup-cmd-form');
+  const popupCmdInput  = document.getElementById('popup-cmd-input');
+  const openSidepanel  = document.getElementById('open-sidepanel');
+  const openOptions    = document.getElementById('open-options');
+  const openHelp       = document.getElementById('open-help');
+  const hintChips      = document.querySelectorAll('.hint-chip');
+  const btnTheme       = document.getElementById('btn-theme');
 
   let activeRecognition = null;
-  let isListening = false;
-  let currentLanguage = 'en-US';
-  let latestHeardText = '';
+  let isListening       = false;
+  let currentLanguage   = 'en-US';
+  let latestHeardText   = '';
 
-  // Check microphone permission
-  checkMicPermission();
+  // ── Theme toggle ────────────────────────────────────────────────────────────
+  const html = document.documentElement;
+  const savedTheme = localStorage.getItem('vordi-theme') || 'dark';
+  html.setAttribute('data-theme', savedTheme);
 
-  // Load existing settings
-  const stored = await chrome.storage.local.get(['settings', 'commandHistory']);
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => {
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('vordi-theme', next);
+    });
+  }
+
+  // ── Load existing settings ──────────────────────────────────────────────────
+  let stored = {};
+  try {
+    stored = await chrome.storage.local.get(['settings', 'commandHistory']);
+  } catch (e) {
+    console.warn('[VORDI Popup] storage.get error:', e);
+  }
+
   const settings = stored.settings || {};
   if (settings.language) currentLanguage = settings.language;
-  enableToggle.checked = settings.enabled !== false;
 
-  updateStatus(enableToggle.checked ? 'standby' : 'sleeping', enableToggle.checked);
+  // Reflect enabled state — default true
+  enableToggle.checked = settings.enabled !== false;
+  updateStatus(enableToggle.checked ? 'standby' : 'disabled', enableToggle.checked);
   renderHistory(stored.commandHistory || []);
 
+  // ── Mic permission check ────────────────────────────────────────────────────
+  // Run after settings are loaded so we don't flash the banner unnecessarily
+  checkMicPermission();
+
+  // ── Voice Hub launcher ──────────────────────────────────────────────────────
   const btnOpenHub = document.getElementById('btn-open-hub');
   if (btnOpenHub) {
     btnOpenHub.addEventListener('click', () => {
@@ -42,132 +65,168 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Permission Banner click
+  // ── Permission banner button ────────────────────────────────────────────────
   if (grantPermLink) {
     grantPermLink.addEventListener('click', () => {
       chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
     });
   }
 
-  // Toggle switch
+  // ── Enable/Disable toggle ───────────────────────────────────────────────────
   enableToggle.addEventListener('change', () => {
     const isEnabled = enableToggle.checked;
-    chrome.runtime.sendMessage({ type: 'SET_ENABLED', enabled: isEnabled });
-    updateStatus(isEnabled ? 'standby' : 'sleeping', isEnabled);
+
+    // Persist correctly — merge into full settings object
+    chrome.storage.local.get('settings', (data) => {
+      const s = Object.assign({}, data.settings || {}, { enabled: isEnabled });
+      chrome.storage.local.set({ settings: s });
+    });
+
+    chrome.runtime.sendMessage({ type: 'SET_ENABLED', enabled: isEnabled }, () => {
+      if (chrome.runtime.lastError) {
+        // Service worker may be starting up — ignore transient errors
+        console.warn('[VORDI Popup] SET_ENABLED:', chrome.runtime.lastError.message);
+      }
+    });
+
+    if (!isEnabled && isListening) {
+      stopLocalRecognition();
+    }
+
+    updateStatus(isEnabled ? 'standby' : 'disabled', isEnabled);
   });
 
-  // Tap to Speak button
+  // ── Mic button: Tap to Speak ────────────────────────────────────────────────
   micBtn.addEventListener('click', () => {
     if (isListening) {
       stopLocalRecognition();
       return;
     }
 
+    // Auto-enable if toggled off
     if (!enableToggle.checked) {
       enableToggle.checked = true;
-      chrome.runtime.sendMessage({ type: 'SET_ENABLED', enabled: true });
+      chrome.storage.local.get('settings', (data) => {
+        const s = Object.assign({}, data.settings || {}, { enabled: true });
+        chrome.storage.local.set({ settings: s });
+      });
+      chrome.runtime.sendMessage({ type: 'SET_ENABLED', enabled: true }, () => {
+        if (chrome.runtime.lastError) console.warn('[VORDI Popup]', chrome.runtime.lastError.message);
+      });
     }
 
     startLocalRecognition();
   });
 
-  // ── Speech Recognition ─────────────────────────────────────────────────────
+  // ── Speech Recognition ──────────────────────────────────────────────────────
   function startLocalRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      statusText.textContent = 'SpeechRecognition not supported in browser';
+      updateStatus('error', false);
+      statusText.textContent = 'Speech recognition not supported';
       return;
     }
 
+    // Tear down any existing instance cleanly
+    if (activeRecognition) {
+      try {
+        activeRecognition.onstart  = null;
+        activeRecognition.onresult = null;
+        activeRecognition.onerror  = null;
+        activeRecognition.onend    = null;
+        activeRecognition.abort();
+      } catch (_) {}
+      activeRecognition = null;
+    }
+
     try {
-      if (activeRecognition) {
-        try {
-          activeRecognition.onstart = null;
-          activeRecognition.onresult = null;
-          activeRecognition.onerror = null;
-          activeRecognition.onend = null;
-          activeRecognition.abort();
-        } catch (_) {}
-        activeRecognition = null;
-      }
+      const rec = new SR();
+      activeRecognition = rec;
+      rec.lang            = currentLanguage;
+      rec.continuous      = false;
+      rec.interimResults  = true;
+      rec.maxAlternatives = 1;
+      latestHeardText     = '';
 
-      activeRecognition = new SR();
-      activeRecognition.lang = currentLanguage;
-      activeRecognition.continuous = false;
-      activeRecognition.interimResults = true;
-      activeRecognition.maxAlternatives = 1;
-
-      latestHeardText = '';
-
-      activeRecognition.onstart = () => {
+      rec.onstart = () => {
         isListening = true;
         micBtn.classList.add('listening');
-        micLabel.textContent = 'Listening… Speak!';
-        statusDot.className = 'status-dot active';
-        statusText.textContent = 'Listening to your voice…';
+        micLabel.textContent = 'Listening...';
+        updateStatus('active', true);
         liveTranscript.style.display = 'block';
-        liveTranscript.textContent = 'Speak now (e.g. "new tab", "scroll down")...';
+        liveTranscript.textContent   = 'Speak a command...';
       };
 
-      activeRecognition.onresult = (event) => {
+      rec.onresult = (event) => {
         let interimText = '';
-        let finalText = '';
+        let finalText   = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const res = event.results[i];
-          if (res.isFinal) {
-            finalText += res[0].transcript;
-          } else {
-            interimText += res[0].transcript;
-          }
+          if (res.isFinal) finalText   += res[0].transcript;
+          else             interimText += res[0].transcript;
         }
 
         const displayText = finalText || interimText;
         if (displayText) {
-          latestHeardText = displayText.trim();
+          latestHeardText          = displayText.trim();
           liveTranscript.textContent = `"${latestHeardText}"`;
-          statusText.textContent = `Hearing: "${latestHeardText}"`;
+          statusText.textContent     = `Hearing: "${latestHeardText}"`;
         }
       };
 
-      activeRecognition.onerror = (event) => {
-        console.warn('Speech recognition error in popup:', event.error);
+      rec.onerror = (event) => {
+        console.warn('[VORDI Popup] Speech error:', event.error);
         isListening = false;
         micBtn.classList.remove('listening');
         micLabel.textContent = 'Tap to Speak';
 
         if (event.error === 'not-allowed') {
           permissionBanner.style.display = 'flex';
-          statusText.textContent = 'Mic blocked. Click Enable Mic!';
-          chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
+          statusText.textContent = 'Mic blocked — click Enable Mic';
         } else if (event.error === 'no-speech') {
-          statusText.textContent = 'No voice heard. Tap again!';
+          statusText.textContent = 'No voice detected — try again';
+          updateStatus('standby', enableToggle.checked);
+        } else if (event.error === 'aborted') {
+          // User cancelled — silent reset
+          updateStatus('standby', enableToggle.checked);
         } else {
           statusText.textContent = `Mic error: ${event.error}`;
+          updateStatus('standby', enableToggle.checked);
         }
+
+        setTimeout(() => { liveTranscript.style.display = 'none'; }, 1200);
       };
 
-      activeRecognition.onend = () => {
+      rec.onend = () => {
+        // Guard: may fire after onerror already reset flags
+        if (!isListening && !latestHeardText) return;
+
         isListening = false;
         micBtn.classList.remove('listening');
         micLabel.textContent = 'Tap to Speak';
 
         const commandToRun = latestHeardText.trim();
+        latestHeardText = '';
+
         if (commandToRun) {
           executeCommand(commandToRun);
         } else {
           setTimeout(() => {
             liveTranscript.style.display = 'none';
             updateStatus('standby', enableToggle.checked);
-          }, 1000);
+          }, 800);
         }
       };
 
-      activeRecognition.start();
+      rec.start();
     } catch (err) {
-      console.error('Failed to start speech recognition:', err);
-      statusText.textContent = 'Failed to start mic. Please check permissions.';
+      console.error('[VORDI Popup] Failed to start recognition:', err);
+      statusText.textContent = 'Failed to start mic — check permissions';
       permissionBanner.style.display = 'flex';
+      isListening = false;
+      micBtn.classList.remove('listening');
+      micLabel.textContent = 'Tap to Speak';
     }
   }
 
@@ -176,23 +235,36 @@ document.addEventListener('DOMContentLoaded', async () => {
       try { activeRecognition.stop(); } catch (_) {}
       activeRecognition = null;
     }
-    isListening = false;
+    isListening     = false;
+    latestHeardText = '';
     micBtn.classList.remove('listening');
     micLabel.textContent = 'Tap to Speak';
+    liveTranscript.style.display = 'none';
     updateStatus('standby', enableToggle.checked);
   }
 
+  // ── Execute command via service worker ──────────────────────────────────────
   function executeCommand(cmd) {
     if (!cmd) return;
-    statusText.textContent = `Executing: "${cmd}"...`;
+    statusText.textContent     = `Running: "${cmd}"`;
     liveTranscript.style.display = 'block';
-    liveTranscript.textContent = `Executing: "${cmd}"`;
+    liveTranscript.textContent   = `Running: "${cmd}"`;
 
-    chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd }, () => {
+    chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn('[VORDI Popup] EXECUTE_COMMAND error:', chrome.runtime.lastError.message);
+        liveTranscript.textContent = 'Error: service worker unavailable';
+        setTimeout(() => {
+          liveTranscript.style.display = 'none';
+          updateStatus('standby', enableToggle.checked);
+        }, 1500);
+        return;
+      }
+
       setTimeout(() => {
         loadHistory();
-        liveTranscript.textContent = `✓ Executed: "${cmd}"`;
-        statusText.textContent = 'Command executed!';
+        liveTranscript.textContent = `Done: "${cmd}"`;
+        statusText.textContent     = 'Command executed';
         setTimeout(() => {
           liveTranscript.style.display = 'none';
           updateStatus('standby', enableToggle.checked);
@@ -201,7 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ── Quick Command Form ─────────────────────────────────────────────────────
+  // ── Quick Command Form ──────────────────────────────────────────────────────
   popupCmdForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const val = popupCmdInput.value.trim();
@@ -211,15 +283,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // ── Quick chips ───────────────────────────────────────────────────────────
+  // ── Quick hint chips ────────────────────────────────────────────────────────
   hintChips.forEach((chip) => {
     chip.addEventListener('click', () => {
-      const cmd = chip.dataset.cmd || chip.textContent.trim().replace('…', '');
+      const cmd = chip.dataset.cmd || chip.textContent.trim();
       executeCommand(cmd);
     });
   });
 
-  // ── Open Side Panel ───────────────────────────────────────────────────────
+  // ── Open Side Panel ─────────────────────────────────────────────────────────
   if (openSidepanel) {
     openSidepanel.addEventListener('click', async (e) => {
       e.preventDefault();
@@ -236,7 +308,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ── Open Options ────────────────────────────────────────────────────────────
+  if (openOptions) {
+    openOptions.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
+    });
+  }
+
+  // ── Open Help ───────────────────────────────────────────────────────────────
+  if (openHelp) {
+    openHelp.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html') + '#commands' });
+    });
+  }
+
+  // ── Mic permission check ────────────────────────────────────────────────────
   async function checkMicPermission() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      permissionBanner.style.display = 'flex';
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
@@ -247,24 +340,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // ── Status helper ───────────────────────────────────────────────────────────
   function updateStatus(state, isEnabled) {
     statusDot.className = 'status-dot';
-    if (!isEnabled) {
-      statusDot.classList.add('disabled');
-      statusText.textContent = 'Disabled';
+
+    if (!isEnabled || state === 'disabled') {
+      statusDot.classList.add('disabled');   // neutral grey (inherits base red)
+      statusText.textContent = 'VORDI disabled';
       return;
     }
-    if (state === 'active') {
-      statusDot.classList.add('active');
-      statusText.textContent = 'Listening for command…';
-    } else {
-      statusDot.classList.add('standby');
-      statusText.textContent = 'Ready (Say "Hey VORDI")';
+
+    switch (state) {
+      case 'active':
+        statusDot.classList.add('active');
+        statusText.textContent = 'Listening...';
+        break;
+      case 'standby':
+      default:
+        statusDot.classList.add('standby');
+        statusText.textContent = 'Ready — say "Hey VORDI"';
     }
   }
 
+  // ── History helpers ─────────────────────────────────────────────────────────
   function loadHistory() {
     chrome.storage.local.get('commandHistory', (data) => {
+      if (chrome.runtime.lastError) return;
       renderHistory(data.commandHistory || []);
     });
   }
@@ -276,35 +377,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     recentList.innerHTML = '';
     history.slice(0, 5).forEach((item) => {
-      const li = document.createElement('li');
-      li.className = 'recent-item';
-      const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const li   = document.createElement('li');
+      const time = new Date(item.timestamp).toLocaleTimeString([], {
+        hour: '2-digit', minute: '2-digit'
+      });
       li.innerHTML = `
         <span class="cmd-text">"${escapeHtml(item.transcript)}"</span>
         <span class="cmd-time">${time}</span>
       `;
-      li.addEventListener('click', () => {
-        executeCommand(item.transcript);
-      });
+      li.addEventListener('click', () => executeCommand(item.transcript));
       recentList.appendChild(li);
     });
   }
 
   function escapeHtml(str) {
-    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  if (openOptions) {
-    openOptions.addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.runtime.openOptionsPage();
-    });
-  }
-
-  if (openHelp) {
-    openHelp.addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html#commands') });
-    });
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 });

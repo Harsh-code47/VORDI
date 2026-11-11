@@ -17,9 +17,9 @@ async function checkCurrentPermission() {
 
 function setSuccess() {
   statusMsg.className = 'status success';
-  statusMsg.textContent = '✓ Microphone permission granted! VORDI is ready.';
-  grantBtn.textContent = '✓ Permission Active';
-  grantBtn.style.background = '#10b981';
+  statusMsg.textContent = 'Microphone permission granted. VORDI is ready.';
+  grantBtn.textContent = 'Permission Active';
+  grantBtn.style.background = 'var(--green, #3fb950)';
   grantBtn.disabled = true;
 
   chrome.storage.local.set({ micPermissionGranted: true });
@@ -27,7 +27,7 @@ function setSuccess() {
 
   setTimeout(() => {
     window.close();
-  }, 1800);
+  }, 1600);
 }
 
 grantBtn.addEventListener('click', async () => {

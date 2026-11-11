@@ -17,15 +17,15 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     #vordi-hud {
-      --bg: rgba(10, 10, 20, 0.92);
-      --border: rgba(99, 102, 241, 0.6);
-      --accent: #6366f1;
-      --accent-green: #22c55e;
-      --accent-yellow: #eab308;
-      --accent-red: #ef4444;
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
-      --radius: 14px;
+      --bg: rgba(13, 17, 23, 0.94);
+      --border: rgba(45, 140, 240, 0.35);
+      --accent: #2d8cf0;
+      --accent-green: #3fb950;
+      --accent-yellow: #d29922;
+      --accent-red: #f85149;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --radius: 10px;
       --shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px var(--border);
 
       position: fixed;
@@ -59,15 +59,23 @@
     }
 
     .hud-logo {
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 700;
-      color: var(--accent);
-      letter-spacing: 0.05em;
+      color: var(--text);
+      letter-spacing: 0.1em;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-logo svg {
+      width: 16px;
+      height: 16px;
     }
 
     .hud-mic-btn {
-      background: rgba(99, 102, 241, 0.25);
-      border: 1px solid rgba(99, 102, 241, 0.5);
+      background: rgba(45, 140, 240, 0.15);
+      border: 1px solid var(--accent);
       color: #fff;
       border-radius: 50%;
       width: 26px;
@@ -81,11 +89,18 @@
       margin-left: auto;
       outline: none;
       padding: 0;
+      animation: hud-mic-breathe 3.2s ease-in-out infinite;
+    }
+
+    @keyframes hud-mic-breathe {
+      0%, 100% { box-shadow: 0 0 0 0px rgba(45, 140, 240, 0); transform: scale(1); }
+      50% { box-shadow: 0 0 0 5px rgba(45, 140, 240, 0.25); transform: scale(1.05); }
     }
 
     .hud-mic-btn:hover {
       background: var(--accent);
       transform: scale(1.1);
+      animation-play-state: paused;
     }
 
     .hud-mic-btn.listening {
@@ -191,13 +206,29 @@
   hud.id = 'vordi-hud';
   hud.innerHTML = `
     <div class="hud-header">
-      <span class="hud-logo">◎ VORDI</span>
-      <button class="hud-mic-btn" id="v-mic-btn" title="Tap to Speak (or Alt+V)">🎤</button>
+      <span class="hud-logo">
+        <svg viewBox="0 0 22 22" fill="none">
+          <rect x="1"  y="8"  width="2.5" height="6"  rx="1.25" fill="#2d8cf0" opacity="0.6"/>
+          <rect x="5"  y="5"  width="2.5" height="12" rx="1.25" fill="#2d8cf0" opacity="0.8"/>
+          <rect x="9"  y="2"  width="2.5" height="18" rx="1.25" fill="#2d8cf0"/>
+          <rect x="13" y="5"  width="2.5" height="12" rx="1.25" fill="#2d8cf0" opacity="0.8"/>
+          <rect x="17" y="8"  width="2.5" height="6"  rx="1.25" fill="#2d8cf0" opacity="0.6"/>
+        </svg>
+        VORDI
+      </span>
+      <button class="hud-mic-btn" id="v-mic-btn" title="Tap to Speak (or Alt+V)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
+          <path d="M5 10a7 7 0 0 0 14 0"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+          <line x1="8"  y1="21" x2="16" y2="21"/>
+        </svg>
+      </button>
       <span class="hud-status-dot" id="v-dot"></span>
     </div>
     <div class="hud-status-label" id="v-status">Sleeping</div>
     <div class="hud-divider"></div>
-    <div class="hud-transcript" id="v-transcript">Say "Hey VORDI" or tap 🎤</div>
+    <div class="hud-transcript" id="v-transcript">Say "Hey VORDI" or tap the mic</div>
     <div class="hud-command" id="v-command"></div>
     <div class="hud-hint">Press Alt+V to speak</div>
   `;
@@ -247,17 +278,23 @@
     setTimeout(() => f.remove(), 500);
   }
 
+  function triggerCommandListen() {
+    setHUDState('active', 'Listening for command...');
+    // Ask background to open assistant or start listening
+    chrome.runtime.sendMessage({ type: 'TRIGGER_VOICE_ASSISTANT' }).catch(() => {});
+  }
+
   // ── HUD Mic Button & Hotkey ───────────────────────────────────────────────
   micBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    chrome.runtime.sendMessage({ type: 'TRIGGER_VOICE_ASSISTANT' }).catch(() => {});
+    triggerCommandListen();
   });
 
   // Hotkey: Alt+V
   window.addEventListener('keydown', (e) => {
     if (e.altKey && (e.key === 'v' || e.key === 'V')) {
       e.preventDefault();
-      chrome.runtime.sendMessage({ type: 'TRIGGER_VOICE_ASSISTANT' }).catch(() => {});
+      triggerCommandListen();
     }
   });
 

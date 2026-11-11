@@ -36,13 +36,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
-      btnRequestMic.textContent = '✓ Mic Enabled';
-      btnRequestMic.style.background = '#10b981';
+      btnRequestMic.textContent = 'Mic Enabled';
+      btnRequestMic.style.background = 'var(--green, #3fb950)';
       btnRequestMic.disabled = true;
       micStatusDesc.textContent = 'Microphone access is active and working.';
       chrome.storage.local.set({ micPermissionGranted: true });
     } catch (_) {
-      btnRequestMic.textContent = '🎤 Enable Microphone';
+      btnRequestMic.textContent = 'Enable Microphone';
       btnRequestMic.style.background = '';
       btnRequestMic.disabled = false;
       micStatusDesc.textContent = 'Click to allow microphone access.';
@@ -89,9 +89,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     switchTab(hash);
   }
 
-  // Load existing settings
-  const data = await chrome.storage.local.get(['settings', 'macros']);
+  // Load existing settings & macros
+  const data = await chrome.storage.local.get(['settings', 'vordi_macros', 'macros']);
   const settings = data.settings || {};
+  const initialMacros = data.vordi_macros || data.macros || {};
 
   if (settings.enabled !== undefined) settingEnabled.checked = settings.enabled;
   if (settings.language) settingLanguage.value = settings.language;
@@ -160,6 +161,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Command history cleared');
   });
 
+  function escapeHtml(str) {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   // Macros UI
   function renderMacros(macros = {}) {
     macrosList.innerHTML = '';
@@ -170,15 +178,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     keys.forEach((name) => {
-      const actions = macros[name] || [];
+      const item = macros[name] || {};
+      const actions = Array.isArray(item) ? item : (item.actions || []);
+      const count = actions.length;
       const li = document.createElement('li');
       li.className = 'macro-item';
       li.innerHTML = `
         <div>
-          <div class="macro-name">⚡ ${name}</div>
-          <div class="macro-steps">${actions.length} action(s) recorded</div>
+          <div class="macro-name">${escapeHtml(name)}</div>
+          <div class="macro-steps">${count} action${count === 1 ? '' : 's'} recorded</div>
         </div>
-        <button class="btn btn-secondary delete-macro-btn" data-name="${name}">Delete</button>
+        <button class="btn btn-secondary delete-macro-btn" data-name="${escapeHtml(name)}">Delete</button>
       `;
       macrosList.appendChild(li);
     });
@@ -186,30 +196,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.delete-macro-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const name = btn.dataset.name;
-        const currentData = await chrome.storage.local.get('macros');
-        const m = currentData.macros || {};
+        const currentData = await chrome.storage.local.get(['vordi_macros', 'macros']);
+        const m = currentData.vordi_macros || currentData.macros || {};
         delete m[name];
-        await chrome.storage.local.set({ macros: m });
+        delete m[name.toLowerCase()];
+        await chrome.storage.local.set({ vordi_macros: m });
         renderMacros(m);
         showToast(`Macro "${name}" deleted`);
       });
     });
   }
 
-  renderMacros(data.macros || {});
+  renderMacros(initialMacros);
 
   // Create macro manually
   btnCreateMacro.addEventListener('click', async () => {
     const name = prompt('Enter a name for the new macro (e.g. "morning routine"):');
     if (!name || !name.trim()) return;
 
-    const currentData = await chrome.storage.local.get('macros');
-    const m = currentData.macros || {};
-    m[name.trim().toLowerCase()] = [
-      { intent: 'OPEN_TAB', entities: {} },
-      { intent: 'NAVIGATE', entities: { url: 'https://news.ycombinator.com' } }
-    ];
-    await chrome.storage.local.set({ macros: m });
+    const key = name.trim().toLowerCase();
+    const currentData = await chrome.storage.local.get(['vordi_macros', 'macros']);
+    const m = currentData.vordi_macros || currentData.macros || {};
+    m[key] = {
+      name: key,
+      actions: [
+        { intent: 'OPEN_TAB', entities: {} },
+        { intent: 'NAVIGATE', entities: { url: 'https://news.ycombinator.com' } }
+      ],
+      createdAt: Date.now()
+    };
+    await chrome.storage.local.set({ vordi_macros: m });
     renderMacros(m);
     showToast(`Macro "${name}" created with sample actions`);
   });

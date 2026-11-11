@@ -77,8 +77,14 @@ function listenForCommand() {
     },
     (error) => {
       sendToBackground({ type: 'COMMAND_ERROR', error });
-      _state = 'sleeping';
-      console.warn('[Offscreen ASR] Error encountered, paused:', error);
+      if (['not-allowed', 'service-not-allowed', 'network'].includes(error)) {
+        _state = 'sleeping';
+        console.warn('[Offscreen ASR] Fatal error encountered, sleeping:', error);
+      } else {
+        // Transient error (like no-speech) — return to wake word listening
+        _state = 'wake-listening';
+        setTimeout(() => startWakeWordDetection(onWakeWordDetected, _language), 500);
+      }
     }
   );
 }

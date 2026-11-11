@@ -1,22 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VORDI Voice Assistant</title>
+  <title>VORDI Voice Hub</title>
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
   <div class="panel-container">
+
     <!-- Header -->
     <header class="header">
       <div class="brand">
-        <span class="brand-icon">◎</span>
+        <div class="brand-mark">
+          <svg width="26" height="26" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1"  y="8"  width="2.5" height="6"  rx="1.25" fill="var(--accent)" opacity="0.6"/>
+            <rect x="5"  y="5"  width="2.5" height="12" rx="1.25" fill="var(--accent)" opacity="0.8"/>
+            <rect x="9"  y="2"  width="2.5" height="18" rx="1.25" fill="var(--accent)"/>
+            <rect x="13" y="5"  width="2.5" height="12" rx="1.25" fill="var(--accent)" opacity="0.8"/>
+            <rect x="17" y="8"  width="2.5" height="6"  rx="1.25" fill="var(--accent)" opacity="0.6"/>
+          </svg>
+        </div>
         <span class="brand-name">VORDI</span>
         <span class="brand-badge">Voice Hub</span>
       </div>
+
       <div class="header-actions">
-        <button id="btn-toggle-wake" class="btn-wake active" title="Toggle Hey VORDI Wake Word">
+        <!-- Theme toggle -->
+        <button class="btn-theme" id="btn-theme" title="Toggle theme" aria-label="Toggle light/dark theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1"  x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22"  y1="4.22"  x2="5.64"  y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1"  y1="12" x2="3"  y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36"/>
+            <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+
+        <!-- Wake word toggle -->
+        <button id="btn-toggle-wake" class="btn-wake active" title="Toggle Hey VORDI wake word">
           <span class="wake-dot"></span>
           <span class="wake-label">Wake Word: ON</span>
         </button>
@@ -34,14 +63,14 @@
             <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor"/>
             <path d="M5 10a7 7 0 0 0 14 0" stroke-linecap="round"/>
             <line x1="12" y1="17" x2="12" y2="21" stroke-linecap="round"/>
-            <line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/>
+            <line x1="8"  y1="21" x2="16" y2="21" stroke-linecap="round"/>
           </svg>
         </button>
       </div>
 
       <div class="status-box">
         <div class="status-heading" id="status-title">Listening for "Hey VORDI"</div>
-        <div class="status-desc" id="status-desc">Say "Hey VORDI" or tap the microphone above</div>
+        <div class="status-desc"   id="status-desc">Say "Hey VORDI" or tap the microphone above</div>
       </div>
 
       <!-- Live audio level meter -->
@@ -58,26 +87,29 @@
 
     <!-- Direct Command Tester -->
     <section class="test-section">
-      <h3 class="section-title">Quick Test & Direct Execution</h3>
+      <h3 class="section-title">Quick Test &amp; Direct Execution</h3>
       <form id="direct-cmd-form" class="cmd-form">
-        <input type="text" id="cmd-input" placeholder="Type a command (e.g. 'new tab', 'scroll down')..." />
+        <input type="text" id="cmd-input" placeholder="Type a command (e.g. 'new tab', 'scroll down')..." autocomplete="off" />
         <button type="submit" class="btn-run">Run</button>
       </form>
 
       <div class="chip-container">
-        <button type="button" class="quick-chip" data-cmd="open new tab">+ New Tab</button>
-        <button type="button" class="quick-chip" data-cmd="scroll down">⬇ Scroll Down</button>
-        <button type="button" class="quick-chip" data-cmd="scroll up">⬆ Scroll Up</button>
-        <button type="button" class="quick-chip" data-cmd="search for artificial intelligence">🔍 Google AI</button>
-        <button type="button" class="quick-chip" data-cmd="go to github.com">🌐 GitHub</button>
-        <button type="button" class="quick-chip" data-cmd="bookmark this page">⭐ Bookmark</button>
+        <button type="button" class="quick-chip" data-cmd="open new tab">New Tab</button>
+        <button type="button" class="quick-chip" data-cmd="scroll down">Scroll Down</button>
+        <button type="button" class="quick-chip" data-cmd="scroll up">Scroll Up</button>
+        <button type="button" class="quick-chip" data-cmd="search for artificial intelligence">Search AI</button>
+        <button type="button" class="quick-chip" data-cmd="go to github.com">GitHub</button>
+        <button type="button" class="quick-chip" data-cmd="bookmark this page">Bookmark</button>
       </div>
     </section>
 
     <!-- Diagnostics / Mic test -->
     <section class="diag-section">
       <button id="btn-run-diag" class="btn-diag">
-        <span>🔬 Run Audio & Microphone Test</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Run Audio &amp; Microphone Test
       </button>
       <div id="diag-results" class="diag-results" style="display: none;"></div>
     </section>
@@ -89,8 +121,20 @@
         <li class="history-empty">No commands executed yet</li>
       </ul>
     </section>
+
   </div>
 
+  <script>
+    // Theme toggle for sidepanel
+    const html = document.documentElement;
+    const saved = localStorage.getItem('vordi-theme') || 'dark';
+    html.setAttribute('data-theme', saved);
+    document.getElementById('btn-theme').addEventListener('click', () => {
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('vordi-theme', next);
+    });
+  </script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

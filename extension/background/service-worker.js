@@ -147,6 +147,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
 
+  // If directed to offscreen, do not intercept
+  if (message.target === 'offscreen') {
+    return;
+  }
+
   // From popup / options / content scripts
   handleUIMessage(message, sender, sendResponse);
   return true; // Keep async
@@ -195,7 +200,7 @@ function handleOffscreenMessage(message) {
     case 'COMMAND_ERROR':
       _state = 'wake-listening';
       broadcastState();
-      broadcastToContentScripts({ type: 'HUD_STATE', state: 'standby', message: 'Say "Hey VORDI" or tap 🎤' });
+      broadcastToContentScripts({ type: 'HUD_STATE', state: 'standby', message: 'Say "Hey VORDI"' });
       break;
   }
 }
@@ -239,7 +244,11 @@ async function handleUIMessage(message, sender, sendResponse) {
 
     case 'SET_ENABLED': {
       _enabled = message.enabled;
-      await chrome.storage.local.set({ 'settings.enabled': _enabled });
+      // Merge into the full settings object — do NOT use dot-notation key
+      const { settings: existingSettings = {} } = await chrome.storage.local.get('settings');
+      await chrome.storage.local.set({
+        settings: Object.assign({}, existingSettings, { enabled: _enabled })
+      });
       if (_enabled) {
         await ensureOffscreen();
         await startWakeWordInOffscreen();

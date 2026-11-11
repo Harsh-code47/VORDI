@@ -1,41 +1,107 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VORDI Settings & Command Reference</title>
+  <title>VORDI Settings</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
   <div class="app-layout">
+
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-icon">◎</div>
+        <div class="brand-icon">
+          <svg width="28" height="28" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1"  y="8"  width="2.5" height="6"  rx="1.25" fill="var(--accent)" opacity="0.6"/>
+            <rect x="5"  y="5"  width="2.5" height="12" rx="1.25" fill="var(--accent)" opacity="0.8"/>
+            <rect x="9"  y="2"  width="2.5" height="18" rx="1.25" fill="var(--accent)"/>
+            <rect x="13" y="5"  width="2.5" height="12" rx="1.25" fill="var(--accent)" opacity="0.8"/>
+            <rect x="17" y="8"  width="2.5" height="6"  rx="1.25" fill="var(--accent)" opacity="0.6"/>
+          </svg>
+        </div>
         <div class="brand-info">
           <h1>VORDI</h1>
           <span class="version">v1.0.0</span>
         </div>
       </div>
 
+      <!-- Theme toggle -->
+      <div class="sidebar-top-actions">
+        <button class="btn-theme" id="btn-theme" title="Toggle theme" aria-label="Toggle light/dark theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1"  x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22"  y1="4.22"  x2="5.64"  y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1"  y1="12" x2="3"  y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22"  y1="19.78" x2="5.64"  y2="18.36"/>
+            <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+      </div>
+
       <nav class="nav-menu">
         <a href="#general" class="nav-item active" data-tab="general">
-          <span class="icon">⚙</span> General
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </span>
+          General
         </a>
         <a href="#wakeword" class="nav-item" data-tab="wakeword">
-          <span class="icon">🎙</span> Wake Word
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8"  y1="23" x2="16" y2="23"/>
+            </svg>
+          </span>
+          Wake Word
         </a>
         <a href="#hud" class="nav-item" data-tab="hud">
-          <span class="icon">🖥</span> HUD Overlay
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <line x1="8"  y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </span>
+          HUD Overlay
         </a>
         <a href="#macros" class="nav-item" data-tab="macros">
-          <span class="icon">⚡</span> Voice Macros
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </span>
+          Voice Macros
         </a>
         <a href="#commands" class="nav-item" data-tab="commands">
-          <span class="icon">📖</span> Command Reference
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </span>
+          Command Reference
         </a>
         <a href="#privacy" class="nav-item" data-tab="privacy">
-          <span class="icon">🔒</span> Privacy & Data
+          <span class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </span>
+          Privacy &amp; Data
         </a>
       </nav>
 
@@ -46,6 +112,7 @@
 
     <!-- Main Content -->
     <main class="main-content">
+
       <!-- General Tab -->
       <section id="tab-general" class="tab-pane active">
         <div class="page-header">
@@ -72,7 +139,7 @@
               <label>Microphone Permission</label>
               <span class="help-text" id="mic-status-desc">Allow VORDI to listen for voice commands and wake word</span>
             </div>
-            <button id="btn-request-mic" class="btn btn-primary">🎤 Enable Microphone</button>
+            <button id="btn-request-mic" class="btn btn-primary">Enable Microphone</button>
           </div>
 
           <div class="divider"></div>
@@ -130,7 +197,13 @@
 
         <div class="card">
           <div class="banner info-banner">
-            <div class="banner-icon">💡</div>
+            <div class="banner-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
             <div class="banner-body">
               <strong>Wake Word Phrase:</strong> Saying <em>"Hey VORDI"</em> instantly arms the assistant to listen for commands without touching your keyboard or mouse.
             </div>
@@ -141,7 +214,7 @@
               <label>Hands-Free Voice Hub</label>
               <span class="help-text">Open the persistent Voice Hub tab or Side Panel for hands-free voice control across all tabs</span>
             </div>
-            <button id="btn-open-hub-options" class="btn btn-primary">🎙️ Launch Voice Hub</button>
+            <button id="btn-open-hub-options" class="btn btn-primary">Launch Voice Hub</button>
           </div>
 
           <div class="divider"></div>
@@ -178,7 +251,7 @@
       <section id="tab-hud" class="tab-pane">
         <div class="page-header">
           <h2>Heads-Up Display (HUD)</h2>
-          <p class="subtitle">Floating on-screen overlay showing listening status & live transcription.</p>
+          <p class="subtitle">Floating on-screen overlay showing listening status &amp; live transcription.</p>
         </div>
 
         <div class="card">
@@ -213,7 +286,7 @@
       <!-- Macros Tab -->
       <section id="tab-macros" class="tab-pane">
         <div class="page-header">
-          <h2>Voice Macros & Automations</h2>
+          <h2>Voice Macros &amp; Automations</h2>
           <p class="subtitle">Automate multi-step browser tasks with custom voice commands.</p>
         </div>
 
@@ -239,7 +312,13 @@
         <div class="command-categories">
           <!-- Category: Tabs -->
           <div class="category-card">
-            <h3>🗂 Tab Management</h3>
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+              </svg>
+              Tab Management
+            </h3>
             <table class="cmd-table">
               <tr><td><code>new tab</code> / <code>open tab</code></td><td>Opens a fresh browser tab</td></tr>
               <tr><td><code>close tab</code> / <code>close this tab</code></td><td>Closes current active tab</td></tr>
@@ -254,7 +333,14 @@
 
           <!-- Category: Navigation -->
           <div class="category-card">
-            <h3>🌐 Navigation & Search</h3>
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              Navigation &amp; Search
+            </h3>
             <table class="cmd-table">
               <tr><td><code>go to [website.com]</code></td><td>Navigates directly to URL</td></tr>
               <tr><td><code>search for [query]</code></td><td>Performs web search on Google</td></tr>
@@ -268,7 +354,13 @@
 
           <!-- Category: Page Interaction -->
           <div class="category-card">
-            <h3>🖱 DOM & Page Control</h3>
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="8 6 2 12 8 18"/>
+                <polyline points="16 6 22 12 16 18"/>
+              </svg>
+              DOM &amp; Page Control
+            </h3>
             <table class="cmd-table">
               <tr><td><code>scroll down</code> / <code>scroll up</code></td><td>Scrolls page up or down</td></tr>
               <tr><td><code>scroll to top</code> / <code>scroll to bottom</code></td><td>Scrolls to page boundary</td></tr>
@@ -282,7 +374,13 @@
 
           <!-- Category: Media Control -->
           <div class="category-card">
-            <h3>🎬 Media Playback</h3>
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"/>
+                <rect x="1" y="5" width="15" height="14" rx="2"/>
+              </svg>
+              Media Playback
+            </h3>
             <table class="cmd-table">
               <tr><td><code>play</code> / <code>pause</code></td><td>Toggles video/audio playback</td></tr>
               <tr><td><code>skip [30] seconds</code> / <code>rewind</code></td><td>Seeks media player</td></tr>
@@ -294,7 +392,12 @@
 
           <!-- Category: System & Macros -->
           <div class="category-card">
-            <h3>⚡ Macros & System</h3>
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              Macros &amp; System
+            </h3>
             <table class="cmd-table">
               <tr><td><code>record macro [name]</code></td><td>Begins recording action sequence</td></tr>
               <tr><td><code>stop recording</code></td><td>Saves currently recorded macro</td></tr>
@@ -310,21 +413,30 @@
       <!-- Privacy Tab -->
       <section id="tab-privacy" class="tab-pane">
         <div class="page-header">
-          <h2>Privacy & Data Security</h2>
+          <h2>Privacy &amp; Data Security</h2>
           <p class="subtitle">VORDI is engineered with privacy as a first-class citizen.</p>
         </div>
 
         <div class="card">
           <div class="privacy-points">
             <div class="privacy-point">
-              <span class="point-icon">🛡</span>
+              <span class="point-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </span>
               <div>
                 <h4>Zero Audio Storage</h4>
                 <p>Audio is processed in real-time through the browser's native Web Speech API. VORDI never uploads raw audio recordings to any server.</p>
               </div>
             </div>
             <div class="privacy-point">
-              <span class="point-icon">🏠</span>
+              <span class="point-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </span>
               <div>
                 <h4>100% Local Configuration</h4>
                 <p>All settings, voice macros, and recent command logs are strictly stored inside your browser's local sandbox (<code>chrome.storage.local</code>).</p>
@@ -343,10 +455,23 @@
           </div>
         </div>
       </section>
+
     </main>
   </div>
 
   <div id="toast" class="toast">Settings saved</div>
+
+  <script>
+    // Theme toggle — runs before options.js to avoid flash
+    const html = document.documentElement;
+    const saved = localStorage.getItem('vordi-theme') || 'dark';
+    html.setAttribute('data-theme', saved);
+    document.getElementById('btn-theme').addEventListener('click', () => {
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('vordi-theme', next);
+    });
+  </script>
   <script src="options.js"></script>
 </body>
 </html>
