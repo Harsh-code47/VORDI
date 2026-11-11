@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "VORDI - Voice Browser Controller",
+  "description": "Control your browser entirely by voice. Wake word: Hey VORDI",
+  "version": "1.0.0",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage",
+    "tts",
+    "history",
+    "bookmarks",
+    "scripting",
+    "notifications",
+    "offscreen",
+    "alarms",
+    "audioCapture"
+  ],
+  "commands": {
+    "toggle-listen": {
+      "suggested_key": {
+        "default": "Alt+V",
+        "mac": "Alt+V"
+      },
+      "description": "Activate VORDI Voice Command"
+    }
+  },
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"],
+      "css": ["content/hud.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "VORDI - Voice Browser Controller"
+  },
+  "options_page": "options/options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "lib/*", "permission/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

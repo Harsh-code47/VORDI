@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VORDI Settings & Command Reference</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">◎</div>
+        <div class="brand-info">
+          <h1>VORDI</h1>
+          <span class="version">v1.0.0</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <a href="#general" class="nav-item active" data-tab="general">
+          <span class="icon">⚙</span> General
+        </a>
+        <a href="#wakeword" class="nav-item" data-tab="wakeword">
+          <span class="icon">🎙</span> Wake Word
+        </a>
+        <a href="#hud" class="nav-item" data-tab="hud">
+          <span class="icon">🖥</span> HUD Overlay
+        </a>
+        <a href="#macros" class="nav-item" data-tab="macros">
+          <span class="icon">⚡</span> Voice Macros
+        </a>
+        <a href="#commands" class="nav-item" data-tab="commands">
+          <span class="icon">📖</span> Command Reference
+        </a>
+        <a href="#privacy" class="nav-item" data-tab="privacy">
+          <span class="icon">🔒</span> Privacy & Data
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <p>Wake word: <strong>"Hey VORDI"</strong></p>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- General Tab -->
+      <section id="tab-general" class="tab-pane active">
+        <div class="page-header">
+          <h2>General Preferences</h2>
+          <p class="subtitle">Customize language, audio responses, and system behavior.</p>
+        </div>
+
+        <div class="card">
+          <div class="form-group row">
+            <div class="label-col">
+              <label for="setting-enabled">Enable VORDI</label>
+              <span class="help-text">Master switch for voice listening and command execution</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-enabled" checked>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="form-group row">
+            <div class="label-col">
+              <label>Microphone Permission</label>
+              <span class="help-text" id="mic-status-desc">Allow VORDI to listen for voice commands and wake word</span>
+            </div>
+            <button id="btn-request-mic" class="btn btn-primary">🎤 Enable Microphone</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="form-group row">
+            <div class="label-col">
+              <label for="setting-language">Speech Recognition Language</label>
+              <span class="help-text">Language used for wake word and command recognition</span>
+            </div>
+            <select id="setting-language" class="form-select">
+              <option value="en-US">English (United States)</option>
+              <option value="en-GB">English (United Kingdom)</option>
+              <option value="en-IN">English (India)</option>
+              <option value="es-ES">Spanish (Español)</option>
+              <option value="fr-FR">French (Français)</option>
+              <option value="de-DE">German (Deutsch)</option>
+              <option value="hi-IN">Hindi (हिन्दी)</option>
+            </select>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="form-group row">
+            <div class="label-col">
+              <label for="setting-audio-feedback">Audio Voice Feedback (TTS)</label>
+              <span class="help-text">Spoken voice confirmation after every executed command</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-audio-feedback" checked>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="form-group row">
+            <div class="label-col">
+              <label for="setting-tts-speed">Speech Feedback Speed</label>
+              <span class="help-text">Rate at which VORDI speaks confirmations</span>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" id="setting-tts-speed" min="0.8" max="1.6" step="0.1" value="1.1">
+              <span id="tts-speed-value" class="slider-val">1.1x</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Wake Word Tab -->
+      <section id="tab-wakeword" class="tab-pane">
+        <div class="page-header">
+          <h2>Wake Word Settings</h2>
+          <p class="subtitle">Tune detection for <strong>"Hey VORDI"</strong>.</p>
+        </div>
+
+        <div class="card">
+          <div class="banner info-banner">
+            <div class="banner-icon">💡</div>
+            <div class="banner-body">
+              <strong>Wake Word Phrase:</strong> Saying <em>"Hey VORDI"</em> instantly arms the assistant to listen for commands without touching your keyboard or mouse.
+            </div>
+          </div>
+
+          <div class="form-group row">
+            <div class="label-col">
+              <label for="setting-sensitivity">Wake Word Sensitivity</label>
+              <span class="help-text">Higher sensitivity detects softer voices; lower reduces accidental triggers</span>
+            </div>
+            <div class="slider-wrapper">
+              <input type="range" id="setting-sensitivity" min="0.3" max="1.0" step="0.05" value="0.7">
+              <span id="sensitivity-value" class="slider-val">0.70</span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="form-group row">
+            <div class="label-col">
+              <label for="setting-auto-sleep">Auto-sleep Timeout</label>
+              <span class="help-text">Time VORDI waits for a command after hearing "Hey VORDI"</span>
+            </div>
+            <select id="setting-auto-sleep" class="form-select">
+              <option value="5">5 Seconds</option>
+              <option value="8" selected>8 Seconds (Recommended)</option>
+              <option value="12">12 Seconds</option>
+              <option value="15">15 Seconds</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- HUD Tab -->
+      <section id="tab-hud" class="tab-pane">
+        <div class="page-header">
+          <h2>Heads-Up Display (HUD)</h2>
+          <p class="subtitle">Floating on-screen overlay showing listening status & live transcription.</p>
+        </div>
+
+        <div class="card">
+          <div class="form-group row">
+            <div class="label-col">
+              <label for="setting-hud-visible">Display HUD Overlay</label>
+              <span class="help-text">Shows live transcription and status indicator on web pages</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="setting-hud-visible" checked>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="form-group row">
+            <div class="label-col">
+              <label for="setting-hud-position">Screen Corner Position</label>
+              <span class="help-text">Where the HUD appears on active web pages</span>
+            </div>
+            <select id="setting-hud-position" class="form-select">
+              <option value="bottom-right" selected>Bottom Right</option>
+              <option value="bottom-left">Bottom Left</option>
+              <option value="top-right">Top Right</option>
+              <option value="top-left">Top Left</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Macros Tab -->
+      <section id="tab-macros" class="tab-pane">
+        <div class="page-header">
+          <h2>Voice Macros & Automations</h2>
+          <p class="subtitle">Automate multi-step browser tasks with custom voice commands.</p>
+        </div>
+
+        <div class="card">
+          <div class="macros-header">
+            <h3>Saved Macros</h3>
+            <button id="btn-create-macro" class="btn btn-primary">+ New Macro</button>
+          </div>
+
+          <ul class="macros-list" id="macros-list">
+            <li class="macro-empty">No macros saved yet. Say <em>"Hey VORDI, record macro [name]"</em> or add one above.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Command Reference Tab -->
+      <section id="tab-commands" class="tab-pane">
+        <div class="page-header">
+          <h2>Voice Command Reference</h2>
+          <p class="subtitle">Say <strong>"Hey VORDI"</strong> followed by any of these phrases:</p>
+        </div>
+
+        <div class="command-categories">
+          <!-- Category: Tabs -->
+          <div class="category-card">
+            <h3>🗂 Tab Management</h3>
+            <table class="cmd-table">
+              <tr><td><code>new tab</code> / <code>open tab</code></td><td>Opens a fresh browser tab</td></tr>
+              <tr><td><code>close tab</code> / <code>close this tab</code></td><td>Closes current active tab</td></tr>
+              <tr><td><code>switch to tab [1-9]</code></td><td>Switches to tab index</td></tr>
+              <tr><td><code>switch to [YouTube/Gmail]</code></td><td>Switches to tab matching title</td></tr>
+              <tr><td><code>duplicate tab</code></td><td>Duplicates current tab</td></tr>
+              <tr><td><code>pin tab</code> / <code>unpin tab</code></td><td>Pins or unpins active tab</td></tr>
+              <tr><td><code>mute tab</code> / <code>unmute tab</code></td><td>Toggles tab audio mute</td></tr>
+              <tr><td><code>reload page</code> / <code>refresh</code></td><td>Reloads active webpage</td></tr>
+            </table>
+          </div>
+
+          <!-- Category: Navigation -->
+          <div class="category-card">
+            <h3>🌐 Navigation & Search</h3>
+            <table class="cmd-table">
+              <tr><td><code>go to [website.com]</code></td><td>Navigates directly to URL</td></tr>
+              <tr><td><code>search for [query]</code></td><td>Performs web search on Google</td></tr>
+              <tr><td><code>go back</code> / <code>previous page</code></td><td>Browser history back</td></tr>
+              <tr><td><code>go forward</code> / <code>next page</code></td><td>Browser history forward</td></tr>
+              <tr><td><code>open history</code></td><td>Opens browser history</td></tr>
+              <tr><td><code>bookmark this</code></td><td>Saves current page as bookmark</td></tr>
+              <tr><td><code>open bookmarks</code></td><td>Opens bookmarks manager</td></tr>
+            </table>
+          </div>
+
+          <!-- Category: Page Interaction -->
+          <div class="category-card">
+            <h3>🖱 DOM & Page Control</h3>
+            <table class="cmd-table">
+              <tr><td><code>scroll down</code> / <code>scroll up</code></td><td>Scrolls page up or down</td></tr>
+              <tr><td><code>scroll to top</code> / <code>scroll to bottom</code></td><td>Scrolls to page boundary</td></tr>
+              <tr><td><code>click [Login / Submit / text]</code></td><td>Clicks button/link with matching text</td></tr>
+              <tr><td><code>type [text]</code></td><td>Types text into active input field</td></tr>
+              <tr><td><code>submit form</code></td><td>Submits current form</td></tr>
+              <tr><td><code>copy</code> / <code>paste</code></td><td>Clipboard copy or paste</td></tr>
+              <tr><td><code>zoom in</code> / <code>zoom out</code> / <code>reset zoom</code></td><td>Adjusts page zoom factor</td></tr>
+            </table>
+          </div>
+
+          <!-- Category: Media Control -->
+          <div class="category-card">
+            <h3>🎬 Media Playback</h3>
+            <table class="cmd-table">
+              <tr><td><code>play</code> / <code>pause</code></td><td>Toggles video/audio playback</td></tr>
+              <tr><td><code>skip [30] seconds</code> / <code>rewind</code></td><td>Seeks media player</td></tr>
+              <tr><td><code>volume up</code> / <code>volume down</code></td><td>Adjusts media volume</td></tr>
+              <tr><td><code>picture in picture</code></td><td>Toggles video PiP mode</td></tr>
+              <tr><td><code>fullscreen</code></td><td>Toggles video fullscreen</td></tr>
+            </table>
+          </div>
+
+          <!-- Category: System & Macros -->
+          <div class="category-card">
+            <h3>⚡ Macros & System</h3>
+            <table class="cmd-table">
+              <tr><td><code>record macro [name]</code></td><td>Begins recording action sequence</td></tr>
+              <tr><td><code>stop recording</code></td><td>Saves currently recorded macro</td></tr>
+              <tr><td><code>run macro [name]</code></td><td>Executes saved macro sequence</td></tr>
+              <tr><td><code>read page</code></td><td>Reads title and page summary aloud</td></tr>
+              <tr><td><code>sleep VORDI</code> / <code>stop listening</code></td><td>Puts VORDI to sleep</td></tr>
+              <tr><td><code>help</code></td><td>Displays quick voice help</td></tr>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Privacy Tab -->
+      <section id="tab-privacy" class="tab-pane">
+        <div class="page-header">
+          <h2>Privacy & Data Security</h2>
+          <p class="subtitle">VORDI is engineered with privacy as a first-class citizen.</p>
+        </div>
+
+        <div class="card">
+          <div class="privacy-points">
+            <div class="privacy-point">
+              <span class="point-icon">🛡</span>
+              <div>
+                <h4>Zero Audio Storage</h4>
+                <p>Audio is processed in real-time through the browser's native Web Speech API. VORDI never uploads raw audio recordings to any server.</p>
+              </div>
+            </div>
+            <div class="privacy-point">
+              <span class="point-icon">🏠</span>
+              <div>
+                <h4>100% Local Configuration</h4>
+                <p>All settings, voice macros, and recent command logs are strictly stored inside your browser's local sandbox (<code>chrome.storage.local</code>).</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="form-group row">
+            <div class="label-col">
+              <label>Clear Command History</label>
+              <span class="help-text">Remove all logged recent voice command transcripts</span>
+            </div>
+            <button id="btn-clear-history" class="btn btn-secondary">Clear History</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast">Settings saved</div>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VORDI</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">◎</span>
+        <span class="logo-text">VORDI</span>
+      </div>
+      <div class="header-controls">
+        <label class="toggle-switch" title="Enable / Disable VORDI">
+          <input type="checkbox" id="enable-toggle">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </header>
+
+    <!-- Permission alert banner (hidden by default) -->
+    <div class="permission-banner" id="permission-banner" style="display: none;">
+      <span>⚠️ Mic permission needed</span>
+      <button id="grant-perm-link" class="btn-perm">Enable Mic</button>
+    </div>
+
+    <!-- Status -->
+    <div class="status-bar" id="status-bar">
+      <span class="status-dot" id="status-dot"></span>
+      <span class="status-text" id="status-text">Loading…</span>
+    </div>
+
+    <!-- Mic button -->
+    <div class="mic-section">
+      <button class="mic-btn" id="mic-btn" title="Click to give a command">
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="9" y="1" width="6" height="13" rx="3" fill="currentColor"/>
+          <path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="9" y1="21" x2="15" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="mic-label" id="mic-label">Tap to Speak</span>
+      </button>
+      <div class="live-transcript" id="live-transcript" style="display: none;"></div>
+      <p class="wake-hint">or say <strong>"Hey VORDI"</strong> on any page (Alt+V)</p>
+    </div>
+
+    <!-- Recent commands -->
+    <section class="recent-section">
+      <h3 class="section-title">Recent Commands</h3>
+      <ul class="recent-list" id="recent-list">
+        <li class="recent-empty">No commands yet</li>
+      </ul>
+    </section>
+
+    <!-- Quick hints -->
+    <section class="hints-section">
+      <h3 class="section-title">Quick Commands</h3>
+      <div class="hints-grid">
+        <div class="hint-chip">New tab</div>
+        <div class="hint-chip">Search for…</div>
+        <div class="hint-chip">Scroll down</div>
+        <div class="hint-chip">Go back</div>
+        <div class="hint-chip">Bookmark this</div>
+        <div class="hint-chip">Volume up</div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <a href="#" id="open-options" class="footer-link">⚙ Settings</a>
+      <span class="footer-sep">·</span>
+      <a href="#" id="open-help" class="footer-link">? Help</a>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
