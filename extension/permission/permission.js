@@ -50,7 +50,7 @@ grantBtn.addEventListener('click', async () => {
     stream.getTracks().forEach((track) => track.stop());
     setSuccess();
   } catch (err) {
-    console.error('[VORDI Permission] Request failed:', err);
+    console.log('[VORDI Permission] Request status:', err.message);
     statusMsg.className = 'status error';
     statusMsg.textContent = 'Permission denied or dismissed. Please click the camera/mic icon in the browser address bar to allow.';
   }

@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     stored = await chrome.storage.local.get(['settings', 'commandHistory', 'micPermissionGranted']);
   } catch (e) {
-    console.warn('[VORDI Popup] storage.get error:', e);
+    console.log('[VORDI Popup] storage.get notice:', e.message);
   }
 
   const settings = stored.settings || {};
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     chrome.runtime.sendMessage({ type: 'SET_ENABLED', enabled: isEnabled }, () => {
-      if (chrome.runtime.lastError) console.warn('[VORDI Popup]', chrome.runtime.lastError.message);
+      if (chrome.runtime.lastError) console.log('[VORDI Popup]', chrome.runtime.lastError.message);
     });
 
     if (!isEnabled && isListening) {
@@ -197,22 +197,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
 
       rec.onerror = (event) => {
-        console.warn('[VORDI Popup] Speech error:', event.error);
+        const err = event?.error || 'unknown';
         isListening = false;
         micBtn.classList.remove('listening');
         micLabel.textContent = 'Tap to Speak';
 
-        if (event.error === 'not-allowed') {
-          permissionBanner.style.display = 'flex';
-          statusText.textContent = 'Opening microphone setup...';
-          chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
-        } else if (event.error === 'no-speech') {
+        if (err === 'no-speech') {
           statusText.textContent = 'No voice heard — tap to try again';
           updateStatus('standby', enableToggle.checked);
-        } else if (event.error === 'aborted') {
+        } else if (err === 'aborted') {
           updateStatus('standby', enableToggle.checked);
+        } else if (err === 'not-allowed') {
+          permissionBanner.style.display = 'flex';
+          statusText.textContent = 'Microphone access needed';
+          chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
         } else {
-          statusText.textContent = `Mic status: ${event.error}`;
+          console.log('[VORDI Popup] Speech event:', err);
+          statusText.textContent = `Mic status: ${err}`;
           updateStatus('standby', enableToggle.checked);
         }
 
@@ -239,7 +240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       rec.start();
     } catch (err) {
-      console.error('[VORDI Popup] Failed to start recognition:', err);
+      console.log('[VORDI Popup] Start notice:', err.message);
       statusText.textContent = 'Starting microphone setup...';
       permissionBanner.style.display = 'flex';
       isListening = false;
@@ -271,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd }, () => {
       if (chrome.runtime.lastError) {
-        console.warn('[VORDI Popup] EXECUTE_COMMAND:', chrome.runtime.lastError.message);
+        console.log('[VORDI Popup] EXECUTE_COMMAND:', chrome.runtime.lastError.message);
       }
 
       setTimeout(() => {

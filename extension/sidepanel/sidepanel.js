@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       cancelAnimationFrame(meterAnimId);
       updateMeter();
     } catch (err) {
-      console.warn('[VORDI SidePanel] Real Audio Meter notice:', err.message);
+      console.log('[VORDI SidePanel] Real Audio Meter notice:', err.message);
     }
   }
 
@@ -228,9 +228,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
 
       rec.onerror = (event) => {
-        console.warn('[VORDI SidePanel] Recognition notice:', event.error);
+        const err = event?.error || 'unknown';
 
-        if (event.error === 'not-allowed') {
+        if (err === 'no-speech') {
+          statusDesc.textContent = 'Speak a command (e.g. "new tab", "scroll down")...';
+          return;
+        }
+
+        if (err === 'aborted') {
+          return;
+        }
+
+        if (err === 'not-allowed') {
           isListening = false;
           setOrbState('idle');
           statusTitle.textContent = 'Microphone Access Required';
@@ -239,14 +248,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
 
-        if (event.error === 'audio-capture') {
+        if (err === 'audio-capture') {
           statusDesc.textContent = 'No microphone device found — check connections';
           return;
         }
 
-        if (event.error === 'no-speech') {
-          statusDesc.textContent = 'Speak a command (e.g. "new tab", "scroll down")...';
-        }
+        console.log('[VORDI SidePanel] Recognition notice:', err);
       };
 
       rec.onend = () => {
@@ -267,7 +274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       rec.start();
     } catch (err) {
-      console.warn('[VORDI SidePanel] Speech start notice:', err.message);
+      console.log('[VORDI SidePanel] Speech start notice:', err.message);
       if (err.name === 'NotAllowedError') {
         openPermissionTab();
       }
@@ -386,7 +393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: clean }, () => {
       if (chrome.runtime.lastError) {
-        console.warn('[VORDI SidePanel] EXECUTE_COMMAND:', chrome.runtime.lastError.message);
+        console.log('[VORDI SidePanel] EXECUTE_COMMAND:', chrome.runtime.lastError.message);
       }
 
       setTimeout(() => {

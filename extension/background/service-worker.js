@@ -112,7 +112,7 @@ async function ensureOffscreen() {
     });
   } catch (err) {
     if (!err.message?.includes('already')) {
-      console.warn('[VORDI SW] Offscreen create notice:', err.message);
+      console.log('[VORDI SW] Offscreen create notice:', err.message);
     }
   }
 }
@@ -127,7 +127,7 @@ async function startWakeWordInOffscreen(language = 'en-US') {
     _state = 'wake-listening';
     broadcastState();
   } catch (err) {
-    console.warn('[VORDI SW] Could not start wake word:', err.message);
+    console.log('[VORDI SW] Offscreen wake notice:', err.message);
   }
 }
 
@@ -201,6 +201,11 @@ function handleOffscreenMessage(message) {
       _state = 'wake-listening';
       broadcastState();
       broadcastToContentScripts({ type: 'HUD_STATE', state: 'standby', message: 'Say "Hey VORDI"' });
+      break;
+
+    case 'WAKE_WORD_ERROR':
+      _state = 'standby';
+      broadcastState();
       break;
   }
 }

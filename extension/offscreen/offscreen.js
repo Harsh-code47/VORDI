@@ -19,7 +19,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'START_WAKE_WORD':
       _language = message.language || 'en-US';
       _state = 'wake-listening';
-      startWakeWordDetection(onWakeWordDetected, _language);
+      startWakeWordDetection(
+        onWakeWordDetected,
+        _language,
+        (err) => {
+          _state = 'sleeping';
+          sendToBackground({ type: 'WAKE_WORD_ERROR', error: err });
+        }
+      );
       sendResponse({ ok: true });
       break;
 
@@ -79,7 +86,7 @@ function listenForCommand() {
       sendToBackground({ type: 'COMMAND_ERROR', error });
       if (['not-allowed', 'service-not-allowed', 'network'].includes(error)) {
         _state = 'sleeping';
-        console.warn('[Offscreen ASR] Fatal error encountered, sleeping:', error);
+        console.log('[Offscreen ASR] Recognition inactive in offscreen context:', error);
       } else {
         // Transient error (like no-speech) — return to wake word listening
         _state = 'wake-listening';
