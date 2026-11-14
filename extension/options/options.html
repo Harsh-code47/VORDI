@@ -461,17 +461,6 @@
 
   <div id="toast" class="toast">Settings saved</div>
 
-  <script>
-    // Theme toggle — runs before options.js to avoid flash
-    const html = document.documentElement;
-    const saved = localStorage.getItem('vordi-theme') || 'dark';
-    html.setAttribute('data-theme', saved);
-    document.getElementById('btn-theme').addEventListener('click', () => {
-      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      html.setAttribute('data-theme', next);
-      localStorage.setItem('vordi-theme', next);
-    });
-  </script>
   <script src="options.js"></script>
 </body>
 </html>

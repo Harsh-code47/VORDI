@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Load existing settings ──────────────────────────────────────────────────
   let stored = {};
   try {
-    stored = await chrome.storage.local.get(['settings', 'commandHistory']);
+    stored = await chrome.storage.local.get(['settings', 'commandHistory', 'micPermissionGranted']);
   } catch (e) {
     console.warn('[VORDI Popup] storage.get error:', e);
   }
@@ -48,14 +48,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settings = stored.settings || {};
   if (settings.language) currentLanguage = settings.language;
 
-  // Reflect enabled state — default true
   enableToggle.checked = settings.enabled !== false;
   updateStatus(enableToggle.checked ? 'standby' : 'disabled', enableToggle.checked);
   renderHistory(stored.commandHistory || []);
 
-  // ── Mic permission check ────────────────────────────────────────────────────
-  // Run after settings are loaded so we don't flash the banner unnecessarily
-  checkMicPermission();
+  // ── Check microphone permission cleanly ─────────────────────────────────────
+  async function checkPermissionGranted() {
+    try {
+      if (navigator.permissions?.query) {
+        const queryStatus = await navigator.permissions.query({ name: 'microphone' });
+        if (queryStatus.state === 'granted') {
+          permissionBanner.style.display = 'none';
+          chrome.storage.local.set({ micPermissionGranted: true });
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    const data = await chrome.storage.local.get('micPermissionGranted');
+    if (data.micPermissionGranted) {
+      permissionBanner.style.display = 'none';
+      return true;
+    }
+
+    permissionBanner.style.display = 'flex';
+    return false;
+  }
+
+  checkPermissionGranted();
 
   // ── Voice Hub launcher ──────────────────────────────────────────────────────
   const btnOpenHub = document.getElementById('btn-open-hub');
@@ -76,17 +96,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   enableToggle.addEventListener('change', () => {
     const isEnabled = enableToggle.checked;
 
-    // Persist correctly — merge into full settings object
     chrome.storage.local.get('settings', (data) => {
       const s = Object.assign({}, data.settings || {}, { enabled: isEnabled });
       chrome.storage.local.set({ settings: s });
     });
 
     chrome.runtime.sendMessage({ type: 'SET_ENABLED', enabled: isEnabled }, () => {
-      if (chrome.runtime.lastError) {
-        // Service worker may be starting up — ignore transient errors
-        console.warn('[VORDI Popup] SET_ENABLED:', chrome.runtime.lastError.message);
-      }
+      if (chrome.runtime.lastError) console.warn('[VORDI Popup]', chrome.runtime.lastError.message);
     });
 
     if (!isEnabled && isListening) {
@@ -97,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ── Mic button: Tap to Speak ────────────────────────────────────────────────
-  micBtn.addEventListener('click', () => {
+  micBtn.addEventListener('click', async () => {
     if (isListening) {
       stopLocalRecognition();
       return;
@@ -110,9 +126,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const s = Object.assign({}, data.settings || {}, { enabled: true });
         chrome.storage.local.set({ settings: s });
       });
-      chrome.runtime.sendMessage({ type: 'SET_ENABLED', enabled: true }, () => {
-        if (chrome.runtime.lastError) console.warn('[VORDI Popup]', chrome.runtime.lastError.message);
-      });
+      chrome.runtime.sendMessage({ type: 'SET_ENABLED', enabled: true }).catch(() => {});
+    }
+
+    // Check permission: if missing, open permission tab directly
+    const granted = await checkPermissionGranted();
+    if (!granted) {
+      statusText.textContent = 'Opening microphone setup tab...';
+      chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
+      return;
     }
 
     startLocalRecognition();
@@ -123,11 +145,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       updateStatus('error', false);
-      statusText.textContent = 'Speech recognition not supported';
+      statusText.textContent = 'Speech recognition not supported in browser';
       return;
     }
 
-    // Tear down any existing instance cleanly
     if (activeRecognition) {
       try {
         activeRecognition.onstart  = null;
@@ -154,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         micLabel.textContent = 'Listening...';
         updateStatus('active', true);
         liveTranscript.style.display = 'block';
-        liveTranscript.textContent   = 'Speak a command...';
+        liveTranscript.textContent   = 'Speak a command now...';
       };
 
       rec.onresult = (event) => {
@@ -169,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const displayText = finalText || interimText;
         if (displayText) {
-          latestHeardText          = displayText.trim();
+          latestHeardText            = displayText.trim();
           liveTranscript.textContent = `"${latestHeardText}"`;
           statusText.textContent     = `Hearing: "${latestHeardText}"`;
         }
@@ -183,25 +204,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (event.error === 'not-allowed') {
           permissionBanner.style.display = 'flex';
-          statusText.textContent = 'Mic blocked — click Enable Mic';
+          statusText.textContent = 'Opening microphone setup...';
+          chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
         } else if (event.error === 'no-speech') {
-          statusText.textContent = 'No voice detected — try again';
+          statusText.textContent = 'No voice heard — tap to try again';
           updateStatus('standby', enableToggle.checked);
         } else if (event.error === 'aborted') {
-          // User cancelled — silent reset
           updateStatus('standby', enableToggle.checked);
         } else {
-          statusText.textContent = `Mic error: ${event.error}`;
+          statusText.textContent = `Mic status: ${event.error}`;
           updateStatus('standby', enableToggle.checked);
         }
 
-        setTimeout(() => { liveTranscript.style.display = 'none'; }, 1200);
+        setTimeout(() => { liveTranscript.style.display = 'none'; }, 1500);
       };
 
       rec.onend = () => {
-        // Guard: may fire after onerror already reset flags
-        if (!isListening && !latestHeardText) return;
-
         isListening = false;
         micBtn.classList.remove('listening');
         micLabel.textContent = 'Tap to Speak';
@@ -222,11 +240,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       rec.start();
     } catch (err) {
       console.error('[VORDI Popup] Failed to start recognition:', err);
-      statusText.textContent = 'Failed to start mic — check permissions';
+      statusText.textContent = 'Starting microphone setup...';
       permissionBanner.style.display = 'flex';
       isListening = false;
       micBtn.classList.remove('listening');
       micLabel.textContent = 'Tap to Speak';
+      chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
     }
   }
 
@@ -246,19 +265,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Execute command via service worker ──────────────────────────────────────
   function executeCommand(cmd) {
     if (!cmd) return;
-    statusText.textContent     = `Running: "${cmd}"`;
+    statusText.textContent       = `Running: "${cmd}"`;
     liveTranscript.style.display = 'block';
     liveTranscript.textContent   = `Running: "${cmd}"`;
 
-    chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd }, (response) => {
+    chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: cmd }, () => {
       if (chrome.runtime.lastError) {
-        console.warn('[VORDI Popup] EXECUTE_COMMAND error:', chrome.runtime.lastError.message);
-        liveTranscript.textContent = 'Error: service worker unavailable';
-        setTimeout(() => {
-          liveTranscript.style.display = 'none';
-          updateStatus('standby', enableToggle.checked);
-        }, 1500);
-        return;
+        console.warn('[VORDI Popup] EXECUTE_COMMAND:', chrome.runtime.lastError.message);
       }
 
       setTimeout(() => {
@@ -324,28 +337,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ── Mic permission check ────────────────────────────────────────────────────
-  async function checkMicPermission() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      permissionBanner.style.display = 'flex';
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-      permissionBanner.style.display = 'none';
-      chrome.storage.local.set({ micPermissionGranted: true });
-    } catch (_) {
-      permissionBanner.style.display = 'flex';
-    }
-  }
-
   // ── Status helper ───────────────────────────────────────────────────────────
   function updateStatus(state, isEnabled) {
     statusDot.className = 'status-dot';
 
     if (!isEnabled || state === 'disabled') {
-      statusDot.classList.add('disabled');   // neutral grey (inherits base red)
+      statusDot.classList.add('disabled');
       statusText.textContent = 'VORDI disabled';
       return;
     }
@@ -353,7 +350,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     switch (state) {
       case 'active':
         statusDot.classList.add('active');
-        statusText.textContent = 'Listening...';
+        statusText.textContent = 'Listening for speech...';
         break;
       case 'standby':
       default:

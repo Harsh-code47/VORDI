@@ -1,7 +1,22 @@
 // sidepanel/sidepanel.js
-// Continuous hands-free voice assistant with "Hey VORDI" wake-word detection
+// Continuous hands-free voice assistant with real audio level sensitivity and "Hey VORDI" wake-word detection
+
+// Apply saved theme immediately
+const savedTheme = localStorage.getItem('vordi-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Theme toggle
+  const btnTheme = document.getElementById('btn-theme');
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('vordi-theme', next);
+    });
+  }
+
   const orb            = document.getElementById('orb');
   const micTriggerBtn  = document.getElementById('mic-trigger-btn');
   const btnToggleWake  = document.getElementById('btn-toggle-wake');
@@ -16,19 +31,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const diagResults    = document.getElementById('diag-results');
   const historyList    = document.getElementById('history-list');
 
-  // ── Theme toggle ────────────────────────────────────────────────────────────
-  // (Theme is applied by inline script in HTML before JS loads to prevent flash.
-  //  The btn-theme listener is wired there too — nothing extra needed here.)
-
   // ── State ───────────────────────────────────────────────────────────────────
   let wakeEnabled     = true;
   let recognition     = null;
   let isListening     = false;
-  let isCommandActive = false;
-  let restartTimer    = null;   // debounce restart loop
-  let audioContext    = null;
+  let isExecuting     = false;
+  let restartTimer    = null;
+
+  // Real Audio Meter variables
+  let audioCtx        = null;
   let analyser        = null;
-  let animFrameId     = null;
+  let micStream       = null;
+  let sourceNode      = null;
+  let meterAnimId     = null;
 
   // ── Load language from settings ─────────────────────────────────────────────
   let currentLanguage = 'en-US';
@@ -37,53 +52,131 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (stored.settings?.language) currentLanguage = stored.settings.language;
   } catch (_) {}
 
-  // ── Wake phrase variants (typo-tolerant) ────────────────────────────────────
+  // ── Wake phrase variants ────────────────────────────────────────────────────
   const WAKE_PHRASES = ['hey vordi', 'hey wordy', 'hey vordee', 'hey boardy', 'vordi'];
 
-  // ── Audio Level Meter ───────────────────────────────────────────────────────
-  async function initAudioMeter() {
-    if (!navigator.mediaDevices?.getUserMedia) return;
+  // ── REAL Live Audio Sensitivity Meter (Web Audio API) ───────────────────────
+  async function startRealAudioMeter() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext  = new (window.AudioContext || window.webkitAudioContext)();
-      const source  = audioContext.createMediaStreamSource(stream);
-      analyser      = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
+      if (!navigator.mediaDevices?.getUserMedia) return;
+
+      if (!micStream || !micStream.active) {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        chrome.storage.local.set({ micPermissionGranted: true });
+      }
+
+      if (!audioCtx || audioCtx.state === 'closed') {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      if (!sourceNode && micStream) {
+        sourceNode = audioCtx.createMediaStreamSource(micStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.5;
+        sourceNode.connect(analyser);
+      }
 
       const bufferLength = analyser.frequencyBinCount;
-      const dataArray    = new Uint8Array(bufferLength);
+      const dataArray = new Uint8Array(bufferLength);
 
-      function tick() {
-        if (!analyser) return;
+      function updateMeter() {
+        if (!analyser || !meterFill) return;
         analyser.getByteFrequencyData(dataArray);
+
         let sum = 0;
-        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
-        const pct = Math.min(100, Math.round((sum / bufferLength / 128) * 100));
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / bufferLength;
+
+        // Real-time voice sensitivity calibration:
+        // Ambient room noise is typically avg <= 4.
+        // Normal speech produces avg values between 12 and 85.
+        let pct = 0;
+        if (avg > 4) {
+          pct = Math.min(100, Math.round(((avg - 4) / 60) * 100));
+        }
+
         meterFill.style.width = `${pct}%`;
-        animFrameId = requestAnimationFrame(tick);
+        meterAnimId = requestAnimationFrame(updateMeter);
       }
-      tick();
+
+      cancelAnimationFrame(meterAnimId);
+      updateMeter();
     } catch (err) {
-      console.warn('[VORDI SidePanel] Audio meter:', err.message);
+      console.warn('[VORDI SidePanel] Real Audio Meter notice:', err.message);
     }
   }
 
-  // ── Continuous recognition loop ──────────────────────────────────────────────
-  function startRecognitionLoop() {
-    if (!wakeEnabled) return;
+  function stopRealAudioMeter() {
+    if (meterAnimId) {
+      cancelAnimationFrame(meterAnimId);
+      meterAnimId = null;
+    }
+    if (meterFill) {
+      meterFill.style.width = '0%';
+    }
+    if (micStream) {
+      micStream.getTracks().forEach((t) => t.stop());
+      micStream = null;
+    }
+    if (sourceNode) {
+      try { sourceNode.disconnect(); } catch (_) {}
+      sourceNode = null;
+    }
+    if (audioCtx && audioCtx.state !== 'closed') {
+      try { audioCtx.close(); } catch (_) {}
+      audioCtx = null;
+    }
+    analyser = null;
+  }
 
-    // Clear any pending restart
-    if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+  // ── Check Microphone Permission ─────────────────────────────────────────────
+  async function hasMicrophonePermission() {
+    try {
+      if (navigator.permissions?.query) {
+        const queryStatus = await navigator.permissions.query({ name: 'microphone' });
+        if (queryStatus.state === 'granted') {
+          chrome.storage.local.set({ micPermissionGranted: true });
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    const data = await chrome.storage.local.get('micPermissionGranted');
+    return Boolean(data.micPermissionGranted);
+  }
+
+  function openPermissionTab() {
+    statusTitle.textContent = 'Microphone Access Required';
+    statusDesc.textContent  = 'Please click "Allow" on the permission page to enable voice control';
+    chrome.tabs.create({ url: chrome.runtime.getURL('permission/permission.html') });
+  }
+
+  // ── Speech Recognition Engine ───────────────────────────────────────────────
+  function startVoiceEngine() {
+    if (restartTimer) {
+      clearTimeout(restartTimer);
+      restartTimer = null;
+    }
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       statusTitle.textContent = 'Speech Recognition Not Supported';
-      statusDesc.textContent  = 'Please use Google Chrome.';
+      statusDesc.textContent  = 'Please use Google Chrome browser.';
       return;
     }
 
-    // Tear down old instance
     if (recognition) {
       try {
         recognition.onstart  = null;
@@ -96,18 +189,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const rec    = new SR();
-      recognition  = rec;
+      const rec = new SR();
+      recognition = rec;
       rec.continuous     = true;
       rec.interimResults = true;
       rec.lang           = currentLanguage;
 
       rec.onstart = () => {
         isListening = true;
-        setOrbState(isCommandActive ? 'listening' : 'idle');
-        if (!isCommandActive) {
-          statusTitle.textContent = 'Listening for "Hey VORDI"';
-          statusDesc.textContent  = 'Say "Hey VORDI" followed by a command';
+        setOrbState('listening');
+        statusTitle.textContent = 'Listening... Speak your command!';
+        statusDesc.textContent  = 'Say e.g. "open new tab", "scroll down", or "Hey VORDI"';
+        if (transcriptBody.textContent === 'Awaiting your voice...') {
+          transcriptBody.textContent = 'Listening for speech...';
         }
       };
 
@@ -122,93 +216,121 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const heard = (final || interim).trim();
-        if (heard) transcriptBody.textContent = `"${heard}"`;
-
-        const lower = heard.toLowerCase();
-
-        // Check for wake word
-        for (const phrase of WAKE_PHRASES) {
-          if (lower.includes(phrase)) {
-            const idx       = lower.indexOf(phrase) + phrase.length;
-            const remainder = heard.slice(idx).replace(/^[,.\s]+/, '').trim();
-
-            if (remainder.length > 1) {
-              // Inline command: "Hey VORDI, new tab"
-              executeCommand(remainder);
-            } else {
-              // Wake word alone — arm command mode
-              isCommandActive = true;
-              setOrbState('listening');
-              statusTitle.textContent = 'Listening for your command';
-              statusDesc.textContent  = 'Speak now: "new tab", "scroll down", etc.';
-            }
-            return;
-          }
+        if (heard) {
+          transcriptBody.textContent = `"${heard}"`;
+          statusTitle.textContent     = `Hearing: "${heard}"`;
         }
 
-        // If armed and speech is long enough, treat as command
-        if (isCommandActive && heard.length > 2 && final) {
-          isCommandActive = false;
-          executeCommand(heard);
+        // Process final speech recognition result
+        if (final.trim().length > 0) {
+          handleRecognizedSpeech(final.trim());
         }
       };
 
       rec.onerror = (event) => {
-        console.warn('[VORDI SidePanel] Speech error:', event.error);
-        isListening = false;
+        console.warn('[VORDI SidePanel] Recognition notice:', event.error);
 
         if (event.error === 'not-allowed') {
-          wakeEnabled = false;
+          isListening = false;
           setOrbState('idle');
-          statusTitle.textContent = 'Microphone Blocked';
-          statusDesc.textContent  = 'Allow microphone access in Chrome settings.';
-        } else if (event.error === 'aborted') {
-          // Intentional abort (e.g. we called recognition.abort()) — ignore
-        } else if (event.error === 'no-speech') {
-          // Normal timeout — onend will restart the loop
-        } else {
-          statusDesc.textContent = `Recognition error: ${event.error}`;
+          statusTitle.textContent = 'Microphone Access Required';
+          statusDesc.textContent  = 'Click the microphone button to grant access';
+          openPermissionTab();
+          return;
+        }
+
+        if (event.error === 'audio-capture') {
+          statusDesc.textContent = 'No microphone device found — check connections';
+          return;
+        }
+
+        if (event.error === 'no-speech') {
+          statusDesc.textContent = 'Speak a command (e.g. "new tab", "scroll down")...';
         }
       };
 
       rec.onend = () => {
-        isListening     = false;
-        isCommandActive = false;
-        setOrbState('idle');
+        isListening = false;
 
-        if (wakeEnabled) {
-          // Small delay to avoid rapid restart loops
-          restartTimer = setTimeout(startRecognitionLoop, 350);
+        // Auto-restart if wake-word mode is active and not currently executing
+        if (wakeEnabled && !isExecuting) {
+          restartTimer = setTimeout(() => {
+            if (wakeEnabled && !isListening) {
+              startVoiceEngine();
+            }
+          }, 350);
+        } else if (!wakeEnabled) {
+          setOrbState('idle');
+          stopRealAudioMeter();
         }
       };
 
       rec.start();
     } catch (err) {
-      console.warn('[VORDI SidePanel] Recognition start failed:', err);
-      if (wakeEnabled) {
-        restartTimer = setTimeout(startRecognitionLoop, 1200);
+      console.warn('[VORDI SidePanel] Speech start notice:', err.message);
+      if (err.name === 'NotAllowedError') {
+        openPermissionTab();
       }
     }
   }
 
-  function stopRecognitionLoop() {
-    if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+  function stopVoiceEngine() {
+    if (restartTimer) {
+      clearTimeout(restartTimer);
+      restartTimer = null;
+    }
     if (recognition) {
       try {
         recognition.onstart  = null;
         recognition.onresult = null;
         recognition.onerror  = null;
-        recognition.onend    = null;   // prevent auto-restart inside onend
-        recognition.stop();
+        recognition.onend    = null;
+        recognition.abort();
       } catch (_) {}
       recognition = null;
     }
-    isListening     = false;
-    isCommandActive = false;
+    isListening = false;
     setOrbState('idle');
+    stopRealAudioMeter();
   }
 
-  // ── Orb visual state helper ──────────────────────────────────────────────────
+  // ── Speech Processing & Command Dispatch ────────────────────────────────────
+  function handleRecognizedSpeech(rawText) {
+    if (!rawText || !rawText.trim() || isExecuting) return;
+    const lower = rawText.toLowerCase().trim();
+
+    let commandToRun = rawText.trim();
+
+    // Check if starts with or contains wake phrase
+    for (const phrase of WAKE_PHRASES) {
+      if (lower.includes(phrase)) {
+        const idx = lower.indexOf(phrase) + phrase.length;
+        const remainder = rawText.slice(idx).replace(/^[,.\s]+/, '').trim();
+        if (remainder.length > 1) {
+          // Combined inline command: "Hey VORDI, new tab"
+          commandToRun = remainder;
+          break;
+        } else {
+          // Spoke wake word alone: "Hey VORDI"
+          statusTitle.textContent    = 'Yes? I am listening!';
+          statusDesc.textContent     = 'Speak your command now...';
+          transcriptBody.textContent = 'Wake word recognized! Speak command...';
+          return;
+        }
+      }
+    }
+
+    commandToRun = commandToRun.replace(/^[,\s.!]+/, '').trim();
+    if (commandToRun.length > 1) {
+      isExecuting = true;
+      executeCommand(commandToRun);
+      setTimeout(() => {
+        isExecuting = false;
+      }, 1800);
+    }
+  }
+
+  // ── Orb State Helper ────────────────────────────────────────────────────────
   function setOrbState(state) {
     if (state === 'listening') {
       orb.classList.add('listening');
@@ -217,143 +339,70 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // ── Orb button: manual one-shot command ─────────────────────────────────────
-  micTriggerBtn.addEventListener('click', () => {
-    if (!wakeEnabled) {
-      // Wake word is off — do a fresh one-shot listen
-      oneShortListen();
+  // ── Orb Button: Tap to Speak ────────────────────────────────────────────────
+  micTriggerBtn.addEventListener('click', async () => {
+    // If currently listening in one-shot mode, toggle off
+    if (isListening && !wakeEnabled) {
+      stopVoiceEngine();
+      statusTitle.textContent = 'Ready';
+      statusDesc.textContent  = 'Tap the microphone to give a command';
       return;
     }
 
-    // Wake word is on and loop is running: arm command mode immediately
-    isCommandActive = true;
-    setOrbState('listening');
-    statusTitle.textContent = 'Listening for your command';
-    statusDesc.textContent  = 'Speak now...';
-    transcriptBody.textContent = 'Listening...';
-
-    // Safety: auto-disarm after 7 s if nothing heard
-    setTimeout(() => {
-      if (isCommandActive) {
-        isCommandActive = false;
-        if (!isListening) setOrbState('idle');
-        statusTitle.textContent = 'Listening for "Hey VORDI"';
-        statusDesc.textContent  = 'Say "Hey VORDI" or tap the mic icon';
-      }
-    }, 7000);
+    // Direct user click provides immediate user gesture
+    statusTitle.textContent = 'Activating microphone...';
+    await startRealAudioMeter();
+    startVoiceEngine();
   });
 
-  // One-shot listen when wake word loop is off
-  function oneShortListen() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-
-    // Don't stack a second instance
-    if (isListening) return;
-
-    setOrbState('listening');
-    statusTitle.textContent    = 'Listening for your command';
-    statusDesc.textContent     = 'Speak now...';
-    transcriptBody.textContent = 'Listening...';
-
-    const rec = new SR();
-    rec.lang           = currentLanguage;
-    rec.continuous     = false;
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-
-    let heard = '';
-
-    rec.onstart = () => { isListening = true; };
-
-    rec.onresult = (event) => {
-      let interim = '', final = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const r = event.results[i];
-        if (r.isFinal) final   += r[0].transcript;
-        else           interim += r[0].transcript;
-      }
-      heard = (final || interim).trim();
-      transcriptBody.textContent = `"${heard}"`;
-    };
-
-    rec.onerror = (event) => {
-      isListening = false;
-      setOrbState('idle');
-      if (event.error === 'not-allowed') {
-        statusTitle.textContent = 'Microphone Blocked';
-        statusDesc.textContent  = 'Allow microphone access in Chrome settings.';
-      } else {
-        statusTitle.textContent = 'Wake Word Paused';
-        statusDesc.textContent  = 'Tap the mic icon to speak a command.';
-      }
-    };
-
-    rec.onend = () => {
-      isListening = false;
-      setOrbState('idle');
-      if (heard.trim().length > 1) {
-        executeCommand(heard.trim());
-      } else {
-        statusTitle.textContent = 'Wake Word Paused';
-        statusDesc.textContent  = 'Tap the mic icon to speak a command.';
-      }
-    };
-
-    try { rec.start(); } catch (e) {
-      isListening = false;
-      setOrbState('idle');
-      console.warn('[VORDI SidePanel] oneShortListen start error:', e);
-    }
-  }
-
-  // ── Wake Word toggle button ──────────────────────────────────────────────────
-  btnToggleWake.addEventListener('click', () => {
+  // ── Wake Word Toggle Button ──────────────────────────────────────────────────
+  btnToggleWake.addEventListener('click', async () => {
     wakeEnabled = !wakeEnabled;
 
     if (wakeEnabled) {
       btnToggleWake.classList.add('active');
       btnToggleWake.querySelector('.wake-label').textContent = 'Wake Word: ON';
       statusTitle.textContent = 'Listening for "Hey VORDI"';
-      statusDesc.textContent  = 'Say "Hey VORDI" followed by a command';
-      startRecognitionLoop();
+      statusDesc.textContent  = 'Say "Hey VORDI" or speak any browser command';
+      await startRealAudioMeter();
+      startVoiceEngine();
     } else {
       btnToggleWake.classList.remove('active');
       btnToggleWake.querySelector('.wake-label').textContent = 'Wake Word: OFF';
       statusTitle.textContent = 'Wake Word Paused';
-      statusDesc.textContent  = 'Tap the mic icon to speak a command manually.';
-      stopRecognitionLoop();
+      statusDesc.textContent  = 'Tap the microphone button to speak a command.';
+      stopVoiceEngine();
     }
   });
 
-  // ── Execute command via service worker ───────────────────────────────────────
+  // ── Execute Command via Service Worker ───────────────────────────────────────
   function executeCommand(text) {
     if (!text || !text.trim()) return;
     const clean = text.trim();
 
-    statusTitle.textContent    = `Executing: "${clean}"`;
-    statusDesc.textContent     = 'Processing command...';
+    statusTitle.textContent    = `Running: "${clean}"`;
+    statusDesc.textContent     = 'Executing command in active tab...';
     transcriptBody.textContent = `"${clean}"`;
 
-    chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: clean }, (response) => {
+    chrome.runtime.sendMessage({ type: 'EXECUTE_COMMAND', transcript: clean }, () => {
       if (chrome.runtime.lastError) {
-        console.warn('[VORDI SidePanel] EXECUTE_COMMAND error:', chrome.runtime.lastError.message);
-        statusTitle.textContent = 'Error — service worker unavailable';
-        statusDesc.textContent  = 'Try reloading the extension.';
-        return;
+        console.warn('[VORDI SidePanel] EXECUTE_COMMAND:', chrome.runtime.lastError.message);
       }
 
       setTimeout(() => {
         loadHistory();
-        statusTitle.textContent = 'Command executed';
-        statusDesc.textContent  = 'Listening for "Hey VORDI"';
+        statusTitle.textContent = `Executed: "${clean}"`;
+        statusDesc.textContent  = wakeEnabled ? 'Listening for "Hey VORDI"...' : 'Ready — tap mic to speak';
         setTimeout(() => {
-          if (!isCommandActive) {
+          if (wakeEnabled) {
             statusTitle.textContent = 'Listening for "Hey VORDI"';
-            statusDesc.textContent  = 'Say "Hey VORDI" anytime while browsing';
+            statusDesc.textContent  = 'Say "Hey VORDI" or tap the microphone above';
+          } else if (!isListening) {
+            statusTitle.textContent = 'Ready';
+            statusDesc.textContent  = 'Tap the microphone to speak a command';
           }
-        }, 1500);
-      }, 400);
+        }, 2200);
+      }, 350);
     });
   }
 
@@ -375,38 +424,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // ── Diagnostics ──────────────────────────────────────────────────────────────
+  // ── Audio & Microphone Diagnostics ──────────────────────────────────────────
   btnRunDiag.addEventListener('click', async () => {
     diagResults.style.display = 'block';
-    diagResults.innerHTML = '<strong>Running diagnostics...</strong><br>';
+    diagResults.innerHTML = '<strong>Running audio & microphone diagnostics...</strong><br>';
 
-    // Mic test
     try {
       const stream    = await navigator.mediaDevices.getUserMedia({ audio: true });
       const trackName = stream.getAudioTracks()[0]?.label || 'Default Microphone';
       stream.getTracks().forEach((t) => t.stop());
-      diagResults.innerHTML += `<b>Microphone:</b> OK — "${trackName}"<br>`;
-      diagResults.innerHTML += `<b>Permission:</b> Granted<br>`;
+      diagResults.innerHTML += `<b>Microphone Hardware:</b> Detected ("${trackName}")<br>`;
+      diagResults.innerHTML += `<b>Permission Status:</b> Granted<br>`;
+      chrome.storage.local.set({ micPermissionGranted: true });
     } catch (err) {
-      diagResults.innerHTML += `<b>Microphone:</b> FAILED — ${err.message}<br>`;
+      diagResults.innerHTML += `<b>Microphone Permission:</b> Not yet allowed (${err.message})<br>`;
+      diagResults.innerHTML += `<button id="diag-grant-btn" style="margin-top:6px;padding:5px 10px;cursor:pointer;background:var(--accent);color:white;border:none;border-radius:4px;font-size:11px;font-weight:600;">Click to Grant Microphone Access</button><br>`;
+      setTimeout(() => {
+        const dBtn = document.getElementById('diag-grant-btn');
+        if (dBtn) dBtn.addEventListener('click', openPermissionTab);
+      }, 100);
     }
 
-    // Speech API test
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     diagResults.innerHTML += SR
-      ? `<b>Web Speech API:</b> Supported<br>`
-      : `<b>Web Speech API:</b> NOT supported — use Chrome<br>`;
+      ? `<b>Web Speech API:</b> Available in current browser<br>`
+      : `<b>Web Speech API:</b> Not supported — please use Google Chrome<br>`;
 
-    // Service worker ping
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, (resp) => {
       if (chrome.runtime.lastError) {
-        diagResults.innerHTML += `<b>Service Worker:</b> Unresponsive — ${chrome.runtime.lastError.message}<br>`;
+        diagResults.innerHTML += `<b>Service Worker:</b> Connecting...<br>`;
       } else if (resp) {
         diagResults.innerHTML += `<b>Service Worker:</b> Active (state: ${resp.state})<br>`;
-      } else {
-        diagResults.innerHTML += `<b>Service Worker:</b> No response<br>`;
       }
-      diagResults.innerHTML += `<br><b>All tests complete.</b> Say "Hey VORDI, new tab" to test.`;
+      diagResults.innerHTML += `<br><b>Diagnostics completed.</b> Speak "new tab" or tap the microphone above.`;
     });
   });
 
@@ -443,8 +493,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       .replace(/>/g, '&gt;');
   }
 
-  // ── Boot ─────────────────────────────────────────────────────────────────────
-  await initAudioMeter();
-  startRecognitionLoop();
+  // ── Auto-start when permission is already granted ───────────────────────────
   loadHistory();
+  const hasPerm = await hasMicrophonePermission();
+  if (hasPerm && wakeEnabled) {
+    await startRealAudioMeter();
+    startVoiceEngine();
+  } else {
+    statusTitle.textContent = 'Ready — Tap Mic to Speak';
+    statusDesc.textContent  = 'Click the microphone button to activate voice control';
+  }
 });

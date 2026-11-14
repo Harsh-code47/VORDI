@@ -1,7 +1,21 @@
 // options/options.js
 // Handles configuration persistence, UI tabs, macro management, and history reset
 
+// Apply saved theme immediately
+const savedTheme = localStorage.getItem('vordi-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // Theme toggle
+  const btnTheme = document.getElementById('btn-theme');
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('vordi-theme', next);
+    });
+  }
   // Elements
   const navItems = document.querySelectorAll('.nav-item');
   const tabPanes = document.querySelectorAll('.tab-pane');
